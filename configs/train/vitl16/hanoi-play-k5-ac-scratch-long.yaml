@@ -1,0 +1,71 @@
+# Run B-long -- run B continued from its epoch-100 latest.pt to epoch 250 (copied into this folder; LR re-warms to
+# the constant phase and anneals over the last 25 epochs). Otherwise identical to run B: predictor FROM SCRATCH, on the Tower-of-Hanoi play_k5 split: the same data as the pi0.5 /
+# Cosmos runs (manifest split, section-3 usable-row filter; openpi/docs/hanoi_play_k5_dataset_handover.md).
+# Frozen V-JEPA 2 ViT-L encoder: vitl.pt 'encoder', bit-identical to facebook/vjepa2-vitl-fpc64-256. No ViT-L AC
+# predictor was released, so the action-conditioned predictor is trained from scratch.
+# Launch: sbatch --export=ALL,CONFIG=configs/train/vitl16/hanoi-play-k5-ac-scratch-256px-8f.yaml app/vjepa_hanoi/train.sbatch
+#         with --ntasks-per-node=2 --gres=gpu:h200:2 (see app/vjepa_hanoi/README.md)
+app: vjepa_hanoi
+folder: /scratch/cw5167/checkpoints/vjepa2_ac_hanoi/B_vitl_scratch_long
+nodes: 1
+tasks_per_node: 2   # 2x H200: the 4-GPU request waited on the partition GPU caps
+data:
+  datasets:
+  - /scratch/cw5167/workspace/openpi/data/hanoi/play_k5_pi05/indices/play_train.npz
+  val_dataset: /scratch/cw5167/workspace/openpi/data/hanoi/play_k5_pi05/indices/play_val.npz
+  test_dataset: /scratch/cw5167/workspace/openpi/data/hanoi/play_k5_pi05/indices/play_test.npz
+  val_max_windows: 2048       # fixed, evenly spaced validation clips (of 81,063)
+  batch_size: 32              # per GPU -> 64 clips per step on 2 GPUs (smoke: 13 GB/GPU at batch 16)
+  crop_size: 256              # 224 px frames resized to the encoder's 16x16 pretraining grid
+  dataset_fpcs: [8]           # 8 frames, 8 states, 7 actions per clip
+  fps: 4                      # every 8th 30 Hz row (3.75 Hz, the DROID rate)
+  num_workers: 8
+  patch_size: 16
+  pin_mem: true
+  persistent_workers: true
+  tubelet_size: 2
+data_aug:                     # no augmentation (stated per handover section 9): deterministic full-frame resize
+  auto_augment: false
+  horizontal_flip: false
+  motion_shift: false
+  random_resize_aspect_ratio: [1.0, 1.0]
+  random_resize_scale: [1.0, 1.0]
+  reprob: 0.0
+loss:
+  auto_steps: 2
+  loss_exp: 1.0
+  normalize_reps: true
+meta:
+  dtype: bfloat16
+  pretrain_checkpoint: /scratch/cw5167/checkpoints/vjepa2/vitl.pt
+  context_encoder_key: encoder  # == HF facebook/vjepa2-vitl-fpc64-256 ('target_encoder' would be the EMA copy)
+  target_encoder_key: encoder
+  load_predictor: false
+  resume_checkpoint: null
+  checkpoint_every: 5         # latest.pt (~6 GB) every 5 epochs = resume granularity
+  save_every_freq: 25
+  val_every: 5
+  seed: 239
+  use_sdpa: true
+model:
+  model_name: vit_large       # 16 heads, matches vitl.pt
+  max_num_frames: 64          # predictor causal-mask capacity only (32 steps); runtime uses 8
+  action_embed_dim: 7
+  pred_depth: 24              # the released V-JEPA 2-AC predictor design
+  pred_embed_dim: 1024
+  pred_num_heads: 16
+  pred_is_frame_causal: true
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_extrinsics: false
+  use_rope: true
+optimization:                 # first run, untuned: 30k steps x 64 clips ~ 3 passes over the 653,784 training clips
+  epochs: 250
+  ipe: 300
+  warmup: 5
+  anneal: 25
+  lr: 0.00025
+  start_lr: 0.00005
+  final_lr: 0.0
+  weight_decay: 0.04
+  final_weight_decay: 0.04
