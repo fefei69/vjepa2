@@ -63,6 +63,36 @@ sbatch --export=ALL,CONFIG=<config>,CKPT=<folder>/best.pt,ARGS="--horizon 1 --ma
 Long-horizon tests (e.g. the full-stack tasks, 15 moves) should give the model only the final goal image under this
 same planner. That is the V-JEPA 2-AC baseline as published.
 
+### Where plain planning works: goal-distance sweep
+
+`goal_distance_eval.py` uses the same default planner and plans from held-out rows inside ring transfers toward a
+single goal frame:
+- k model steps ahead (`step_1` ... `step_16`, 0.27-4.3 s);
+- the end of the current motion stage (`stage_end`);
+- the end of the current game move or of 3, 7 or 15 moves (`move_end_1` ... `move_end_15`).
+
+It scores the first planned step against the expert's next step, by stage, on the same rows for every goal type.
+Results go to `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/goal_distance/`.
+
+## Plain baseline on the arm (goal image only)
+
+1. On a GPU node, start the server:
+   ```bash
+   python -m app.vjepa_hanoi.goal_planner --fname <yaml> --checkpoint <best.pt> --host 0.0.0.0 \
+       --goal_archive <openpi play_train.npz>
+   ```
+   It runs the default repo planner toward one goal image. Execution safety only (applied after planning, reported
+   per step): a workspace clamp and a 0.10 m/s speed limit.
+2. On the robot host, tunnel with `ssh -L 8766:<gpu node>:8766 <cluster>`, then:
+   ```bash
+   PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --start AAAA --goal-board BAAA \
+       --log run.npz
+   ```
+   Alternatively, pass `--goal-image goal.npy`, captured beforehand with `--save-goal-image` after arranging the
+   goal board. The step budget defaults to 2 x optimal game moves x 120 steps. There is no subgoal, route or
+   success logic: check the board afterwards.
+3. Rehearse with `--dry-run --replay <recording.h5>`.
+
 Task-specific planning aids (a symbolic route solver, per-stage subgoal images, holding x fixed, a step cap) are kept
 separately in `app/vjepa_hanoi_oracle/`. They use privileged information and are not part of this baseline.
 
