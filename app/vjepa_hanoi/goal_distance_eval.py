@@ -34,8 +34,12 @@ GOAL_TYPES = ["step_1", "step_2", "step_4", "step_8", "step_16", "stage_end"] + 
 FSTP = 8  # raw rows per model step (30 Hz, fps 4)
 
 
-def candidate_rows(archive):
-    """Usable rows in transfer stages with every goal row they admit (rows are raw indices in their file)."""
+def candidate_rows(archive, real_moves_only=True):
+    """Usable rows in transfer stages with every goal row they admit (rows are raw indices in their file).
+
+    move_end_j counts real game moves only: moves that contain a transfer stage (1-9). The terminal hold/padding
+    row at the end of a walk or episode carries the next move index but is not a move (real_moves_only=False
+    reproduces the first sweep, which counted it)."""
     z = np.load(archive)
     obs, fi, seg = z["source_observation_indices"], z["file_indices"], z["segment_bounds"]
     move, stage = z["move_indices"], z["motion_stages"]
@@ -46,7 +50,8 @@ def candidate_rows(archive):
         sel = sel[np.argsort(obs[sel])]
         rows, mv, st = obs[sel], move[sel], stage[sel]
         usable = set(rows.tolist())
-        move_end = {m: rows[mv == m].max() for m in np.unique(mv)}
+        moves = [m for m in np.unique(mv) if not real_moves_only or np.isin(st[mv == m], np.arange(1, 10)).any()]
+        move_end = {m: rows[mv == m].max() for m in moves}
         for i, r in enumerate(rows):
             if st[i] not in range(1, 10) or r + FSTP not in usable:
                 continue
@@ -61,6 +66,30 @@ def candidate_rows(archive):
                     goals[f"move_end_{n}"] = move_end[mv[i] + n - 1]
             out.append({"file": int(key[0]), "row": int(r), "stage": int(st[i]), "goals": goals})
     return out, paths
+
+
+def summarize(rec, m):
+    """Steering metrics over the rows selected by mask m (y-z plane; the arm moves in it)."""
+    t, pl = rec["true"][m, 1:3] * 1e3, rec["plan"][m, 1:3] * 1e3  # y-z: the plane the arm moves in
+    mag = np.linalg.norm(t, axis=1)
+    mov = mag >= 5
+    cos = np.sum(t[mov] * pl[mov], 1) / (mag[mov] * np.linalg.norm(pl[mov], axis=1) + 1e-9)
+    tg, pg = rec["true"][m, 6], rec["plan"][m, 6]
+    ev = np.abs(tg) >= 0.25
+    nan = float("nan")
+    return {
+        "rows": int(m.sum()),
+        "goal_seconds_median": float(np.median(rec["goal_seconds"][m])) if m.any() else nan,
+        "moving_rows": int(mov.sum()),
+        "direction_cos_median": float(np.median(cos)) if mov.any() else nan,
+        "direction_correct": float(np.mean(cos > 0)) if mov.any() else nan,
+        "direction_within_45deg": float(np.mean(cos > np.cos(np.pi / 4))) if mov.any() else nan,
+        "yz_err_over_zero_median": (
+            float(np.median(np.linalg.norm(pl[mov] - t[mov], axis=1) / mag[mov])) if mov.any() else nan
+        ),
+        "gripper_events": int(ev.sum()),
+        "gripper_sign_accuracy": float(np.mean(np.sign(pg[ev]) == np.sign(tg[ev]))) if ev.any() else nan,
+    }
 
 
 def main():
@@ -130,40 +159,20 @@ def main():
         rec["plan"].append(plan[0].float().cpu().numpy())
         rec["stage"].append(c["stage"])
         rec["goal_seconds"].append((g - r) / 30.0)
+        rec["file_index"].append(c["file"])
+        rec["row"].append(r)
         if len(rec["true"]) % 50 == 0:
             print(f"{len(rec['true'])} rows, {(time.time() - t0) / len(rec['true']):.2f} s/row", flush=True)
     rec = {k: np.asarray(v) for k, v in rec.items()}
     np.savez_compressed(args.out.replace(".json", "_rows.npz"), **rec)
-
-    def summary(m):
-        t, pl = rec["true"][m, 1:3] * 1e3, rec["plan"][m, 1:3] * 1e3  # y-z: the plane the arm moves in
-        mag = np.linalg.norm(t, axis=1)
-        mov = mag >= 5
-        cos = np.sum(t[mov] * pl[mov], 1) / (mag[mov] * np.linalg.norm(pl[mov], axis=1) + 1e-9)
-        tg, pg = rec["true"][m, 6], rec["plan"][m, 6]
-        ev = np.abs(tg) >= 0.25
-        nan = float("nan")
-        return {
-            "rows": int(m.sum()),
-            "goal_seconds_median": float(np.median(rec["goal_seconds"][m])) if m.any() else nan,
-            "moving_rows": int(mov.sum()),
-            "direction_cos_median": float(np.median(cos)) if mov.any() else nan,
-            "direction_correct": float(np.mean(cos > 0)) if mov.any() else nan,
-            "direction_within_45deg": float(np.mean(cos > np.cos(np.pi / 4))) if mov.any() else nan,
-            "yz_err_over_zero_median": (
-                float(np.median(np.linalg.norm(pl[mov] - t[mov], axis=1) / mag[mov])) if mov.any() else nan
-            ),
-            "gripper_events": int(ev.sum()),
-            "gripper_sign_accuracy": float(np.mean(np.sign(pg[ev]) == np.sign(tg[ev]))) if ev.any() else nan,
-        }
 
     allm = np.ones(len(rec["stage"]), bool)
     result = {
         "goal_type": args.goal_type,
         "checkpoint": args.checkpoint,
         "planner": cem_kw | {"source": "notebooks/utils/mpc_utils.py::cem (defaults, no aids)"},
-        "overall": summary(allm),
-        "by_stage": {STAGES[int(s)]: summary(rec["stage"] == s) for s in np.unique(rec["stage"])},
+        "overall": summarize(rec, allm),
+        "by_stage": {STAGES[int(s)]: summarize(rec, rec["stage"] == s) for s in np.unique(rec["stage"])},
     }
     with open(args.out, "w") as f:
         json.dump(result, f, indent=1)
