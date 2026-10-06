@@ -28,6 +28,8 @@
 #   - The repo planner (notebooks/utils/mpc_utils.py::cem) clips each axis to a box (maxnorm 0.05 m), where the paper
 #     uses an L1 ball of radius 0.075. Neither binds here: expert steps are <= 3.3 cm.
 #   - The paper's 4/10/4-step schedule is specific to its task, so the Hanoi schedule is set from expert timing.
+#   - --fix_x (off by default) holds x at 0 via the repo planner's axis option. x never varies in this data, so
+#     the model cannot learn its effect, and the planned x is otherwise random.
 
 import argparse
 import itertools
@@ -104,6 +106,7 @@ def main():
     p.add_argument("--cem_steps", type=int, default=10, help="paper: 10 refinement steps")
     p.add_argument("--rollout", type=int, default=1, help="paper: planning horizon 1")
     p.add_argument("--maxnorm", type=float, default=0.05, help="repo cem per-axis box (paper: L1 ball 0.075)")
+    p.add_argument("--fix_x", action="store_true", help="deviation, off by default: hold x (never varies in data)")
     p.add_argument("--out", required=True)
     args = p.parse_args()
 
@@ -135,6 +138,8 @@ def main():
     )
     cem_kw = dict(rollout=args.rollout, samples=args.samples, topk=10, cem_steps=args.cem_steps,
                   momentum_mean=0.15, momentum_std=0.15, maxnorm=args.maxnorm)  # fmt: skip
+    if args.fix_x:
+        cem_kw["axis"] = {0: 0.0}
 
     train_moves, train_paths, train_incomplete = moves(args.goal_archive)
     test_moves, test_paths, test_incomplete = moves(args.archive)
@@ -215,6 +220,7 @@ def main():
         "switch": args.switch if args.goals == "paper3" else "none",
         "goal_source": args.goal_source,
         "final_stage": args.final_stage,
+        "fix_x": args.fix_x,
         "goal_frames": {"1": "end of stage 4 (grasp)", "2": "end of stage 6 (transit)",
                         "3": f"end of stage {args.final_stage} ({STAGES[args.final_stage]})"},  # fmt: skip
         "time_schedule_reach_steps": reach,

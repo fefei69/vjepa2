@@ -144,6 +144,10 @@ number of expert steps per goal: 25 / 23 / 12 steps on both the play and the exp
   - `--start` and `--goal-board` must be one ring transfer apart.
   - `--goal-images grasped.npy,near.npy,final.npy` uses your own photos.
   - `--schedule 25,23,12` overrides the switch points; the budget is the schedule total.
+  - `--fix_x` on the server (off by default) holds x at 0 with the repo planner's own `axis` option. This is a
+    disclosed deviation. x never varies in this data, so the model cannot learn what it does, and the planned x is
+    otherwise random (a median of 26 mm per step offline). Running with and without it separates x drift from the
+    protocol itself.
 
 Deviations from the paper:
 - The repo planner clips each axis to ±0.05 m where the paper uses an L1 ball of radius 0.075. Neither binds here:

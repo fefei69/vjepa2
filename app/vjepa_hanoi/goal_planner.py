@@ -11,7 +11,8 @@
 #                               800 samples, 10 refinement steps. Pick-and-place there uses two subgoal images ("object
 #                               grasped", "object near the goal position") before the final goal, switched on a fixed
 #                               time schedule; the client picks the active goal (arm_goal_client --protocol paper).
-# There is no task solver, no fixed axis and no step cap.
+# There is no task solver and no step cap. x is planned freely unless --fix_x (off by default; a disclosed deviation:
+# x never varies in this data, so its effect cannot be learned, and the planner's x is otherwise random).
 #
 # Goals (POST /goal, an .npz body):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -58,7 +59,8 @@ PLANNERS = {  # notebooks/utils/world_model_wrapper.py defaults; the paper's rob
 
 
 class GoalPlanner:
-    def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8):
+    def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
+                 fix_x=False):
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
         d = cfg["data"]
@@ -86,7 +88,9 @@ class GoalPlanner:
             crop_size=crop,
         )
         self.protocol = protocol
-        self.cem_kw = PLANNERS[protocol]
+        self.cem_kw = dict(PLANNERS[protocol])
+        if fix_x:  # disclosed deviation: x never varies in the data, so the planner cannot learn it
+            self.cem_kw["axis"] = {0: 0.0}  # the repo planner's own option for holding an action dimension
         self.final_stage = final_stage
         self.goal_archive = goal_archive
         self.max_step = max_speed * STEP_S
@@ -238,12 +242,13 @@ def main():
     p.add_argument("--goal_archive", default=None, help="training split archive: goal_board / transition goals")
     p.add_argument("--protocol", choices=tuple(PLANNERS), default="plain")
     p.add_argument("--final_stage", type=int, choices=(8, 9), default=8, help="paper protocol: final goal frame")
+    p.add_argument("--fix_x", action="store_true", help="deviation, off by default: hold x (never varies in data)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8766)
     p.add_argument("--max_speed", type=float, default=0.10, help="execution safety limit (m/s), after planning")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
-                          args.final_stage)  # fmt: skip
+                          args.final_stage, args.fix_x)  # fmt: skip
     serve(planner, args.host, args.port)
 
 
