@@ -1,7 +1,7 @@
-# Robot-host client for the PLAIN V-JEPA 2-AC baseline: one goal image, the repo planner, nothing else.
+# Robot-host client for the V-JEPA 2-AC baseline: the plain goal-image planner, or the paper's pick-and-place protocol.
 #
 #   0. on a GPU node:  python -m app.vjepa_hanoi.goal_planner --fname <yaml> --checkpoint <best.pt> --host 0.0.0.0 \
-#                          --goal_archive <openpi play_train.npz>
+#                          --goal_archive <training split .npz> [--protocol paper]
 #      then tunnel it to the robot host: ssh -L 8766:<gpu node>:8766 <cluster>
 #   1. optional, capture a real goal photo: arrange the goal board, then
 #        PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --save-goal-image goal.npy
@@ -9,12 +9,21 @@
 #        PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --start AAAA \
 #            --goal-board BAAA [--goal-image goal.npy] --log run_AAAA_BAAA.npz
 #
-# The goal is set once (an uploaded photo, or the goal board's training frames on the server). Every control step
+# The goal is set once (an uploaded photo, or a training frame of the goal board on the server). Every control step
 # sends the current 224 px frame + measured pose + gripper coordinate, executes the first planned action (one 0.267 s
 # step; the server only clamps it to the workspace and a speed limit), and repeats until the step budget is used:
 # --steps, or by default 2 x the optimal number of game moves x --steps-per-move (the composition test's budget of
 # twice the optimal move count). There is no success detector and no subgoal or route logic; check the board at the
 # end (e.g. robot.check_board). Every step is logged to --log for analysis.
+#
+# --protocol paper (server started with --protocol paper) runs the V-JEPA 2 paper's pick-and-place protocol for ONE
+# game move (--start and --goal-board one legal ring transfer apart). There are three goal images: the ring grasped,
+# the ring above the target peg, and the ring placed. They are the server's training frames of that transition, or
+# your own photos via --goal-images grasped.npy,near.npy,final.npy. The goals switch on the paper's fixed time
+# schedule: --schedule, by default the training split's median expert steps per goal as reported by the server.
+# The budget is the schedule total.
+#   PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --protocol paper --start AAAA \
+#       --goal-board BAAA --log run_paper_AAAA_BAAA.npz
 
 import argparse
 import io
@@ -68,12 +77,35 @@ def load_image(path):
     return cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
 
 
+def paper_goal(args, p):
+    """Paper protocol: set the three goals on the server; return (reply, budget, steps after which goals switch)."""
+    if args.goal_images:
+        images = np.stack([load_image(f).astype(np.uint8) for f in args.goal_images.split(",")])
+        goal = post(args.server, "/goal", goal_images=images)
+    else:
+        if not (args.start and args.goal_board) or board_distance(args.start, args.goal_board) != 1:
+            p.error("--protocol paper is one game move: give --start and --goal-board one ring transfer apart")
+        goal = post(args.server, "/goal", transition=f"{args.start}>{args.goal_board}")
+    if goal.get("protocol") != "paper":
+        p.error("the server is not running --protocol paper")
+    schedule = [int(s) for s in args.schedule.split(",")] if args.schedule else goal.get("schedule")
+    if not schedule or len(schedule) != goal["n_goals"]:
+        p.error(f"give --schedule with one step count per goal ({goal['n_goals']})")
+    switch = list(np.cumsum(schedule)[:-1])
+    budget = args.steps if args.steps is not None else int(sum(schedule))
+    print(f"paper protocol: {goal['n_goals']} goals, schedule {schedule} steps, planner {goal['planner']}", flush=True)
+    return goal, budget, switch
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--server", default="http://127.0.0.1:8766")
+    p.add_argument("--protocol", choices=("plain", "paper"), default="plain", help="must match the server's")
     p.add_argument("--start", help="current board, e.g. AAAA (sizes the step budget)")
     p.add_argument("--goal-board", help="goal board, e.g. CCCC (server uses its training frames as the goal image)")
     p.add_argument("--goal-image", help="goal photo (.npy 224x224x3 RGB from --save-goal-image, or .png)")
+    p.add_argument("--goal-images", help="paper protocol: grasped,near-target,final photos (comma-separated)")
+    p.add_argument("--schedule", help="paper protocol: steps per goal, e.g. 25,23,12 (default: the server's)")
     p.add_argument("--save-goal-image", help="capture the current transformed frame to this .npy and exit")
     p.add_argument("--steps", type=int, default=None, help="step budget (overrides the default)")
     p.add_argument("--steps-per-move", type=int, default=120, help="~32 s per game move at 0.267 s per step")
@@ -98,33 +130,39 @@ def main():
             np.save(args.save_goal_image, image)
             print(f"saved goal image {image.shape} -> {args.save_goal_image}")
             return 0
-        if not (args.goal_board or args.goal_image):
-            p.error("give --goal-board and/or --goal-image")
-        goal = (
-            post(args.server, "/goal", goal_image=load_image(args.goal_image).astype(np.uint8))
-            if args.goal_image
-            else post(args.server, "/goal", goal_board=args.goal_board)
-        )
-        budget = args.steps
-        if budget is None:
-            if not (args.start and args.goal_board):
-                p.error("the default budget needs --start and --goal-board (or pass --steps)")
-            budget = 2 * board_distance(args.start, args.goal_board) * args.steps_per_move
+        if args.protocol == "paper":
+            goal, budget, switch = paper_goal(args, p)
+        else:
+            if not (args.goal_board or args.goal_image):
+                p.error("give --goal-board and/or --goal-image")
+            goal = (
+                post(args.server, "/goal", goal_image=load_image(args.goal_image).astype(np.uint8))
+                if args.goal_image
+                else post(args.server, "/goal", goal_board=args.goal_board)
+            )
+            budget, switch = args.steps, []
+            if budget is None:
+                if not (args.start and args.goal_board):
+                    p.error("the default budget needs --start and --goal-board (or pass --steps)")
+                budget = 2 * board_distance(args.start, args.goal_board) * args.steps_per_move
         print(f"goal: {goal['goal']}; budget {budget} steps ({budget * STEP_S:.0f} s)", flush=True)
-        log = {k: [] for k in ("pose", "jaw", "action", "executed_delta", "goal_energy", "plan_energy", "scaled")}
+        log = {k: [] for k in ("pose", "jaw", "action", "executed_delta", "goal_energy", "plan_energy", "scaled",
+                               "goal_index")}  # fmt: skip
         intent = None
         for step in range(1, budget + 1):
+            gi = sum(step > s for s in switch)  # paper protocol: goals switch at fixed steps; plain: the one goal
+            if gi and step - 1 == switch[gi - 1]:
+                print(f"step {step}: switching to goal {gi + 1} of {goal['n_goals']}", flush=True)
             image, pose, jaw = robot.observe()
-            out = post(
-                args.server, "/plan", image=image.astype(np.uint8), pose=np.asarray(pose, float), jaw=float(jaw)
-            )
+            out = post(args.server, "/plan", image=image.astype(np.uint8), pose=np.asarray(pose, float),
+                       jaw=float(jaw), goal_index=gi if switch else -1)  # fmt: skip
             if out["gripper_intent"] != intent:
                 robot.gripper(out["gripper_intent"])
                 intent = out["gripper_intent"]
             robot.move(out["target_pose"], STEP_S)
             for k, v in (("pose", pose), ("jaw", jaw), ("action", out["action"]), ("scaled", out["safety_scaled"]),
                          ("executed_delta", out["executed_delta"]), ("goal_energy", out["goal_energy"]),
-                         ("plan_energy", out["plan_energy"])):  # fmt: skip
+                         ("plan_energy", out["plan_energy"]), ("goal_index", out["goal_index"])):  # fmt: skip
                 log[k].append(v)
             if step % 10 == 0 or step == 1:
                 d = 1e3 * np.asarray(out["executed_delta"])

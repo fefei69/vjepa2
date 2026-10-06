@@ -89,9 +89,69 @@ Results go to `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/goal_distance/`.
        --log run.npz
    ```
    Alternatively, pass `--goal-image goal.npy`, captured beforehand with `--save-goal-image` after arranging the
-   goal board. The step budget defaults to 2 x optimal game moves x 120 steps. There is no subgoal, route or
+   goal board. With `--goal-board`, the goal is one training frame of that board at the end of a move (arm
+   retreated). The step budget defaults to 2 x optimal game moves x 120 steps. There is no subgoal, route or
    success logic: check the board afterwards.
 3. Rehearse with `--dry-run --replay <recording.h5>`.
+
+## Six-task expert data
+
+`build_expert_archive.py` rebuilds the Cosmos six-task split into the archive format above:
+- source: `cosmos-policy/data/hanoi_cosmos/multitask_v6`, six directed full-stack recordings;
+- split: episodes 0-7 train, 8 validate, 9 test;
+- rows: every non-stale, non-repeated row, taken verbatim from the Cosmos archives.
+
+`configs/train/vitg16/hanoi-expert6-ac-{ft,scratch}-256px-8f.yaml` train A-expert and C-expert with the play runs'
+hyperparameters.
+
+## Why one goal image fails within a game move: energy profile
+
+`energy_profile.py` uses the frozen encoder only, with no predictor and no planner. It measures the L1 energy to a
+goal frame along the expert's own path. Toward the end-of-move image, the expert's own descend and insert steps go
+uphill (about 70% of steps): the goal shows the arm raised, so moving down moves away from it. The descend barrier
+lasts about 9 model steps, beyond a 1-2 step planning horizon. Toward the end of the current motion stage, the path
+is mostly downhill. Results: `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/energy_profile/SUMMARY.md`.
+
+## The paper's pick-and-place protocol: one game move
+
+The V-JEPA 2 paper (arXiv 2506.09985, sec. 4.2) plans pick-and-place as follows:
+- two subgoal images before the final goal: the object grasped, then the object near the goal position;
+- goals switched on a fixed time schedule;
+- CEM at planning horizon 1, with 800 samples and 10 refinement steps, on the L1 energy;
+- one action executed before re-planning.
+
+For one ring transfer, the three goals are:
+- goal 1: the end of the grasp (ring grasped at the source peg);
+- goal 2: the end of the transit (ring above the target peg);
+- goal 3: the end of the release (ring on the target peg, arm still at it). `--final_stage 9` uses the end of the
+  retreat instead.
+
+Each goal is one frame of a training move of the same board transition. These stand in for the experimenter-provided
+images of the paper; on the arm you can pass your own photos instead. The schedule is the training split's median
+number of expert steps per goal: 25 / 23 / 12 steps on both the play and the expert training splits.
+
+- **Offline check.** `paper_protocol_eval.py` steps along held-out moves and compares the planner's step toward the
+  active goal with the expert's next step.
+  - `--switch time` is the paper's fixed schedule; `--switch stage` is perfect switching (an upper bound).
+  - `--goals final_only` is the same planner with the final image only.
+  - `--goal_source test` uses the held-out move's own frames instead of training frames.
+  - Results: `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/paper_protocol/`.
+- **On the arm.** Start the server with `--protocol paper` (horizon 1, 800 samples, 10 iterations), then run:
+  ```bash
+  PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --protocol paper --start AAAA \
+      --goal-board BAAA --log run_paper_AAAA_BAAA.npz
+  ```
+  - `--start` and `--goal-board` must be one ring transfer apart.
+  - `--goal-images grasped.npy,near.npy,final.npy` uses your own photos.
+  - `--schedule 25,23,12` overrides the switch points; the budget is the schedule total.
+
+Deviations from the paper:
+- The repo planner clips each axis to ±0.05 m where the paper uses an L1 ball of radius 0.075. Neither binds here:
+  expert steps are at most 3.3 cm.
+- The paper's 4 / 10 / 4-step schedule belongs to its own task, so the Hanoi schedule is set from expert timing.
+
+This protocol covers one game move. A 15-move task would need subgoal images for every move, i.e. a task planner,
+which the published method does not have.
 
 Task-specific planning aids (a symbolic route solver, per-stage subgoal images, holding x fixed, a step cap) are kept
 separately in `app/vjepa_hanoi_oracle/`. They use privileged information and are not part of this baseline.
