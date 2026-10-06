@@ -30,6 +30,8 @@
 #   - The paper's 4/10/4-step schedule is specific to its task, so the Hanoi schedule is set from expert timing.
 #   - --fix_x (off by default) holds x at 0 via the repo planner's axis option. x never varies in this data, so
 #     the model cannot learn its effect, and the planned x is otherwise random.
+#   - --hold_grasp (off by default) holds the gripper closed while goal 2 is active, via the repo planner's
+#     close_gripper option.
 
 import argparse
 import itertools
@@ -107,6 +109,7 @@ def main():
     p.add_argument("--rollout", type=int, default=1, help="paper: planning horizon 1")
     p.add_argument("--maxnorm", type=float, default=0.05, help="repo cem per-axis box (paper: L1 ball 0.075)")
     p.add_argument("--fix_x", action="store_true", help="deviation, off by default: hold x (never varies in data)")
+    p.add_argument("--hold_grasp", action="store_true", help="deviation, off by default: gripper closed during goal 2")
     p.add_argument("--out", required=True)
     args = p.parse_args()
 
@@ -196,8 +199,9 @@ def main():
         pose_t = torch.as_tensor(s7[None, :1], dtype=torch.float32, device=device)
         torch.manual_seed(n)
         with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype, enabled=dtype != torch.float32):
+            held = args.hold_grasp and args.goals == "paper3" and g == 2  # carrying toward goal 2
             plan = mpc.cem(context_frame=z0, context_pose=pose_t, goal_frame=goal_cache[(gsrc, gfile, grow)],
-                           world_model=step_fn, **cem_kw)[0]  # fmt: skip
+                           world_model=step_fn, close_gripper=0 if held else None, **cem_kw)[0]  # fmt: skip
         rec["true"].append(true)
         rec["plan"].append(plan[0].float().cpu().numpy())
         rec["stage"].append(int(m["stages"][m["rows"] == r][0]))
@@ -221,6 +225,7 @@ def main():
         "goal_source": args.goal_source,
         "final_stage": args.final_stage,
         "fix_x": args.fix_x,
+        "hold_grasp": args.hold_grasp,
         "goal_frames": {"1": "end of stage 4 (grasp)", "2": "end of stage 6 (transit)",
                         "3": f"end of stage {args.final_stage} ({STAGES[args.final_stage]})"},  # fmt: skip
         "time_schedule_reach_steps": reach,

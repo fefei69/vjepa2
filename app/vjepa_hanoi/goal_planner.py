@@ -13,6 +13,9 @@
 #                               time schedule; the client picks the active goal (arm_goal_client --protocol paper).
 # There is no task solver and no step cap. x is planned freely unless --fix_x (off by default; a disclosed deviation:
 # x never varies in this data, so its effect cannot be learned, and the planner's x is otherwise random).
+# --hold_grasp (paper protocol, off by default; a disclosed deviation): while goal 2 (ring above the target) is active,
+# the gripper is held closed with the repo planner's own close_gripper option. Without it, the planner commands
+# "open" on most carrying steps (paper_protocol/SUMMARY.md) and drops the ring.
 #
 # Goals (POST /goal, an .npz body):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -60,7 +63,7 @@ PLANNERS = {  # notebooks/utils/world_model_wrapper.py defaults; the paper's rob
 
 class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
-                 fix_x=False):
+                 fix_x=False, hold_grasp=False):
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
         d = cfg["data"]
@@ -94,6 +97,7 @@ class GoalPlanner:
         self.final_stage = final_stage
         self.goal_archive = goal_archive
         self.max_step = max_speed * STEP_S
+        self.hold_grasp = hold_grasp
         self.goals = []  # goal latents in order; /plan picks one by goal_index (default: the last)
         self.goal_desc = None
         self._train = None
@@ -165,10 +169,11 @@ class GoalPlanner:
         s7 = hanoi_states(pose[None], np.full((1, 8), float(jaw)))
         z0 = self.encode(np.asarray(image)[None])
         s = torch.as_tensor(s7[None], dtype=torch.float32, device=self.device)
+        held = self.hold_grasp and len(self.goals) == 3 and goal_index % 3 == 1  # carrying toward goal 2
         torch.manual_seed(seed)
         with self._autocast():
             plan = self.mpc.cem(context_frame=z0, context_pose=s, goal_frame=goal, world_model=self.step_fn,
-                                **self.cem_kw)[0].float()  # fmt: skip
+                                close_gripper=0 if held else None, **self.cem_kw)[0].float()  # fmt: skip
             final = rollout(self.step_fn, z0, s, plan[None]).float()
         a = plan[0].cpu().numpy()  # execute the first planned action, then replan
         delta = a[:3].copy()
@@ -186,6 +191,7 @@ class GoalPlanner:
             "executed_delta": (target[:3] - pose[:3]).tolist(),
             "safety_scaled": bool(scaled),
             "goal_index": goal_index % len(self.goals),
+            "gripper_held": bool(held),
             "goal_energy": float(torch.mean(torch.abs(z0 - goal))),
             "plan_energy": float(torch.mean(torch.abs(final - goal))),
         }
@@ -243,12 +249,13 @@ def main():
     p.add_argument("--protocol", choices=tuple(PLANNERS), default="plain")
     p.add_argument("--final_stage", type=int, choices=(8, 9), default=8, help="paper protocol: final goal frame")
     p.add_argument("--fix_x", action="store_true", help="deviation, off by default: hold x (never varies in data)")
+    p.add_argument("--hold_grasp", action="store_true", help="deviation, off by default: gripper closed during goal 2")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8766)
     p.add_argument("--max_speed", type=float, default=0.10, help="execution safety limit (m/s), after planning")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
-                          args.final_stage, args.fix_x)  # fmt: skip
+                          args.final_stage, args.fix_x, args.hold_grasp)  # fmt: skip
     serve(planner, args.host, args.port)
 
 

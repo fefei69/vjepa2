@@ -147,7 +147,7 @@ def main():
                 budget = 2 * board_distance(args.start, args.goal_board) * args.steps_per_move
         print(f"goal: {goal['goal']}; budget {budget} steps ({budget * STEP_S:.0f} s)", flush=True)
         log = {k: [] for k in ("pose", "jaw", "action", "executed_delta", "goal_energy", "plan_energy", "scaled",
-                               "goal_index")}  # fmt: skip
+                               "goal_index", "gripper_held")}  # fmt: skip
         intent = None
         for step in range(1, budget + 1):
             gi = sum(step > s for s in switch)  # paper protocol: goals switch at fixed steps; plain: the one goal
@@ -162,7 +162,8 @@ def main():
             robot.move(out["target_pose"], STEP_S)
             for k, v in (("pose", pose), ("jaw", jaw), ("action", out["action"]), ("scaled", out["safety_scaled"]),
                          ("executed_delta", out["executed_delta"]), ("goal_energy", out["goal_energy"]),
-                         ("plan_energy", out["plan_energy"]), ("goal_index", out["goal_index"])):  # fmt: skip
+                         ("plan_energy", out["plan_energy"]), ("goal_index", out["goal_index"]),
+                         ("gripper_held", out.get("gripper_held", False))):  # fmt: skip
                 log[k].append(v)
             if step % 10 == 0 or step == 1:
                 d = 1e3 * np.asarray(out["executed_delta"])

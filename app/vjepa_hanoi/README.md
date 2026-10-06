@@ -148,6 +148,9 @@ number of expert steps per goal: 25 / 23 / 12 steps on both the play and the exp
     disclosed deviation. x never varies in this data, so the model cannot learn what it does, and the planned x is
     otherwise random (a median of 26 mm per step offline). Running with and without it separates x drift from the
     protocol itself.
+  - `--hold_grasp` on the server (off by default, paper protocol only) holds the gripper closed while goal 2 (ring
+    above the target) is active, using the repo planner's own `close_gripper` option. Also a disclosed deviation:
+    without it, the planner commands "open" on most carrying steps offline and is expected to drop the ring.
 
 Deviations from the paper:
 - The repo planner clips each axis to ±0.05 m where the paper uses an L1 ball of radius 0.075. Neither binds here:
