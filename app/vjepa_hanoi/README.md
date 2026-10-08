@@ -165,21 +165,39 @@ which the published method does not have.
 ## Real-robot one-move test (the six first moves, `one_move_test.py`)
 
 The model is A fine-tuned on `data/expert6_first_move`. That is the same 48 training episodes the VLA and
-world-action models get: the first move of each H15 task, ring 1 off a full stack.
+world-action models get: the first move of each H15 task, ring 1 off a full stack. The planning server runs on the
+robot machine's GPU; nothing runs on the cluster.
 
-1. **GPU node.** `sbatch app/vjepa_hanoi/serve.sbatch` starts `goal_planner --protocol paper` with that model and
-   that dataset's training demos as goal images, for 8 h. `grep -A3 TUNNEL` on its log gives the ssh command.
-2. **Robot host, terminal 1.** Open the tunnel: `ssh -N -L 8766:<gpu node>:8766 <cluster login>`. Then check it with
-   `curl -s http://127.0.0.1:8766/health`, which shows the checkpoint, protocol and safety box.
-3. **Robot host, terminal 2.** Pull this branch, then run
-   `PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_<date>`.
+1. **Export a bundle** (once, on the cluster, CPU only):
+   ```bash
+   python -m app.vjepa_hanoi.export_robot_bundle --fname configs/train/vitg16/hanoi-firstmove-ac-ft-256px-8f.yaml \
+       --checkpoint <A_firstmove_vitg_finetune_v1/best.pt> --goal_archive <data/expert6_first_move/train.npz> --out <bundle>
+   ```
+   It writes:
+   - `weights.pt` (5.3 GB): the frozen encoder and the predictor, float32, with no optimizer state;
+   - `goals.npz` (1.4 MB): each move's three goal frames and its schedule, plus the workspace box;
+   - `config.yaml`;
+   - `MANIFEST.json` with sha256 hashes.
+
+   Copy the folder to the robot machine.
+2. **Robot machine, terminal 1: the server.** It needs a CUDA GPU and this repo's Python dependencies: torch,
+   torchvision, timm, einops, numpy, scipy, PyYAML, h5py, opencv-python-headless, pillow.
+   ```bash
+   python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint <bundle>/weights.pt \
+       --goal_bundle <bundle>/goals.npz --protocol paper --host 127.0.0.1 --port 8766
+   ```
+   `curl -s http://127.0.0.1:8766/health` shows the checkpoint, protocol and safety box.
+3. **Robot machine, terminal 2: the runner.** It runs in tower_hanoi's environment (numpy + tower_hanoi; no torch).
+   ```bash
+   PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_<date> \
+       --tower-hanoi <tower_hanoi>
+   ```
    - It runs the six cases × `faithful,hold` (12 runs), prompting you to set the board before each run and asking
      afterwards how far the move got (0–5, or x = invalid, redo).
    - `--resume` continues a session.
    - `--repeats N` repeats every case and variant.
    - Each run's log has every step with its camera frame; one row per attempt goes to `results.jsonl`.
-4. **Rehearse on the robot host first.** Add `--dry-run --replay-archive <expert6_first_move/test.npz> --yes`. This
-   uses tower_hanoi's DryRunArm and the recorded test move as the camera, and needs the recordings.
+   - `app/vjepa_hanoi/serve.sbatch` runs the same server on a cluster GPU instead, reached over an ssh tunnel.
 
 Before the arm moves, the runner refuses to start unless the robot host's tower_hanoi config matches the recordings:
 - the gripper opens to 0.034 (`open_fraction` 0.85 in `workspace.json`);

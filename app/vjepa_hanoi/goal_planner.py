@@ -2,6 +2,9 @@
 #
 #   python -m app.vjepa_hanoi.goal_planner --fname <yaml> --checkpoint <best.pt> --host 0.0.0.0 --port 8766 \
 #       --goal_archive <training split .npz> [--protocol paper]
+#   on the robot machine, from a bundle written by app/vjepa_hanoi/export_robot_bundle.py (no recordings needed):
+#   python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint <bundle>/weights.pt \
+#       --goal_bundle <bundle>/goals.npz --protocol paper --host 127.0.0.1 --port 8766
 #
 # Each request plans with the repo planner (notebooks/utils/mpc_utils.py::cem) from the current frame and measured
 # state toward a goal image, and returns the first planned action (rotation fixed at 0):
@@ -77,7 +80,7 @@ PLANNERS = {  # notebooks/utils/world_model_wrapper.py defaults; the paper's rob
 
 class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
-                 fix_x=False, hold_grasp=False):
+                 fix_x=False, hold_grasp=False, goal_bundle=None):
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
         d = cfg["data"]
@@ -118,6 +121,17 @@ class GoalPlanner:
                 xyz = z["measured_xyz"]
                 lo, hi = xyz.min(0) - np.array([0.005, 0.005, 0.001]), xyz.max(0) + 0.005
                 self.box = (lo, hi, f"training data of {goal_archive}")
+        self.bundle = None
+        if goal_bundle is not None:  # exported goal frames, schedules and box: no recordings needed
+            if goal_archive is not None:
+                raise ValueError("give --goal_archive or --goal_bundle, not both")
+            b = np.load(goal_bundle)
+            self.bundle = {str(t): i for i, t in enumerate(b["transitions"])}
+            self.bundle_data = {k: b[k] for k in b.files}
+            if int(b["final_stage"]) != final_stage:
+                raise ValueError(f"the bundle's final goal is stage {int(b['final_stage'])}, not {final_stage}")
+            self.box = (b["box_min"], b["box_max"], f"training data of {str(b['goal_archive'])} (bundle)")
+        self.goal_bundle = goal_bundle
         self.schedule_now = None
         self.goals = []  # goal latents in order; /plan picks one by goal_index (default: the last)
         self.goal_desc = None
@@ -178,6 +192,15 @@ class GoalPlanner:
             row = int(m["rows"][-1])
             self.goals = [self.encode(self.training_frame(m["file"], row)[None])]
             desc = f"board {board}: end of training move {m['transition']} (file {m['file']}, row {row})"
+        elif transition is not None and self.bundle is not None:
+            if transition not in self.bundle:
+                raise ValueError(f"the goal bundle has no move {transition}; it has {sorted(self.bundle)}")
+            i = self.bundle[transition]
+            self.goals = [self.encode(self.bundle_data["frames"][i, k][None]) for k in range(3)]
+            src = self.bundle_data["frame_sources"][i]
+            desc = (f"transition {transition}: bundled training frames (file {src[0][0]}) ring grasped (row "
+                    f"{src[0][1]}), above the target (row {src[1][1]}), final = end of stage {self.final_stage} "
+                    f"(row {src[2][1]})")  # fmt: skip
         elif transition is not None:
             train, _ = self.training_moves()
             m = next((m for m in train if m["transition"] == transition), None)
@@ -192,7 +215,11 @@ class GoalPlanner:
         self.goal_desc = desc
         out = {"goal": desc, "n_goals": len(self.goals), "protocol": self.protocol, "planner": self.cem_kw,
                "options": self.options}  # fmt: skip
-        if self.protocol == "paper" and self.goal_archive is not None:
+        if self.protocol == "paper" and self.bundle is not None:
+            i = self.bundle.get(transition)
+            out["schedule"] = (self.bundle_data["schedules"][i] if i is not None
+                               else self.bundle_data["global_schedule"]).tolist()  # fmt: skip
+        elif self.protocol == "paper" and self.goal_archive is not None:
             out["schedule"] = self.schedule(transition)
         out["box"] = {"min": self.box[0].tolist(), "max": self.box[1].tolist(), "source": self.box[2]}
         return out
@@ -255,6 +282,7 @@ def serve(planner, host, port):
         def do_GET(self):
             if self.path == "/health":
                 self._send(200, {"ok": True, "checkpoint": planner.checkpoint, "goal_archive": planner.goal_archive,
+                                 "goal_bundle": planner.goal_bundle,
                                  "protocol": planner.protocol, "planner": planner.cem_kw, "options": planner.options,
                                  "max_step_m": planner.max_step, "box": {"min": planner.box[0].tolist(),
                                  "max": planner.box[1].tolist(), "source": planner.box[2]}, "goal": planner.goal_desc,
@@ -297,6 +325,7 @@ def main():
     p.add_argument("--fname", required=True)
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--goal_archive", default=None, help="training split archive: goal_board / transition goals")
+    p.add_argument("--goal_bundle", default=None, help="goals.npz from export_robot_bundle (instead of --goal_archive)")
     p.add_argument("--protocol", choices=tuple(PLANNERS), default="plain")
     p.add_argument("--final_stage", type=int, choices=(8, 9), default=8, help="paper protocol: final goal frame")
     p.add_argument("--fix_x", action="store_true",
@@ -307,7 +336,7 @@ def main():
     p.add_argument("--max_speed", type=float, default=0.10, help="execution safety limit (m/s), after planning")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
-                          args.final_stage, args.fix_x, args.hold_grasp)  # fmt: skip
+                          args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle)  # fmt: skip
     serve(planner, args.host, args.port)
 
 

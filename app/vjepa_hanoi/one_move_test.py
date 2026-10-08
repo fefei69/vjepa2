@@ -1,10 +1,14 @@
 # Real-robot one-move test for V-JEPA 2-AC: the first move of the six H15 tasks, under the paper's pick-and-place
 # protocol (app/vjepa_hanoi/goal_planner.py --protocol paper).
 #
-#   GPU node:   sbatch app/vjepa_hanoi/serve.sbatch      (prints the node and the tunnel command)
-#   robot host: ssh -N -L 8766:<gpu node>:8766 <cluster login>        # keep open in another terminal
-#               PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_1
+#   server (robot machine's GPU; the bundle comes from app/vjepa_hanoi/export_robot_bundle.py):
+#       python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint <bundle>/weights.pt \
+#           --goal_bundle <bundle>/goals.npz --protocol paper --host 127.0.0.1 --port 8766
+#   runner (tower_hanoi's environment, another terminal):
+#       PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_1
+#   (or serve on a cluster GPU with app/vjepa_hanoi/serve.sbatch and an ssh tunnel to port 8766)
 #   rehearsal:  ... one_move_test --dry-run --replay-archive <data/expert6_first_move/test.npz> --yes --out <dir>
+#               (needs the recordings at the archive's paths)
 #
 # Cases: ring 1 off a full stack, AAAA>BAAA, AAAA>CAAA, BBBB>ABBB, BBBB>CBBB, CCCC>ACCC, CCCC>BCCC. These are the six
 # test cases of data/expert6_first_move (episode 9 of each recording), the dataset the VLA and world-action models
