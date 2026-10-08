@@ -29,12 +29,13 @@ import argparse
 import io
 import json
 import sys
+import urllib.error
 import urllib.request
 from collections import deque
 
 import numpy as np
 
-from app.vjepa_hanoi.robot_io import STEP_S, Robot
+from app.vjepa_hanoi.robot_io import START_POSE, STEP_S, Robot
 
 
 def board_distance(start, goal):
@@ -62,8 +63,14 @@ def post(server, path, **arrays):
     buf = io.BytesIO()
     np.savez(buf, **arrays)
     req = urllib.request.Request(server + path, data=buf.getvalue(), method="POST")
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        out = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            out = json.loads(resp.read())
+    except urllib.error.HTTPError as e:  # the server answers 400 with {"error": reason}
+        try:
+            out = json.loads(e.read())
+        except Exception:
+            raise RuntimeError(f"planner: HTTP {e.code} {e.reason}") from e
     if "error" in out:
         raise RuntimeError(f"planner: {out['error']}")
     return out
@@ -79,13 +86,14 @@ def load_image(path):
 
 def paper_goal(args, p):
     """Paper protocol: set the three goals on the server; return (reply, budget, steps after which goals switch)."""
+    opts = {k: True for k in ("fix_x", "hold_grasp") if getattr(args, k)}  # flags add to the server's defaults
     if args.goal_images:
         images = np.stack([load_image(f).astype(np.uint8) for f in args.goal_images.split(",")])
-        goal = post(args.server, "/goal", goal_images=images)
+        goal = post(args.server, "/goal", goal_images=images, **opts)
     else:
         if not (args.start and args.goal_board) or board_distance(args.start, args.goal_board) != 1:
             p.error("--protocol paper is one game move: give --start and --goal-board one ring transfer apart")
-        goal = post(args.server, "/goal", transition=f"{args.start}>{args.goal_board}")
+        goal = post(args.server, "/goal", transition=f"{args.start}>{args.goal_board}", **opts)
     if goal.get("protocol") != "paper":
         p.error("the server is not running --protocol paper")
     schedule = [int(s) for s in args.schedule.split(",")] if args.schedule else goal.get("schedule")
@@ -93,8 +101,57 @@ def paper_goal(args, p):
         p.error(f"give --schedule with one step count per goal ({goal['n_goals']})")
     switch = list(np.cumsum(schedule)[:-1])
     budget = args.steps if args.steps is not None else int(sum(schedule))
-    print(f"paper protocol: {goal['n_goals']} goals, schedule {schedule} steps, planner {goal['planner']}", flush=True)
+    print(f"paper protocol: {goal['n_goals']} goals, schedule {schedule} steps, options {goal.get('options')}, "
+          f"planner {goal['planner']}", flush=True)  # fmt: skip
     return goal, budget, switch
+
+
+LOG_KEYS = ("pose", "jaw", "action", "executed_delta", "goal_energy", "plan_energy", "scaled", "goal_index",
+            "gripper_held", "gripper_intent", "plan_seconds", "image")
+
+
+def new_log():
+    return {k: [] for k in LOG_KEYS}
+
+
+def save_log(path, log, **meta):
+    """Every step (with its 224 px camera frame) plus run metadata, compressed."""
+    arrays = {k: np.asarray(v) for k, v in log.items() if v}
+    arrays.update({f"meta_{k}": np.asarray(json.dumps(v)) for k, v in meta.items()})  # JSON text: loads without pickle
+    np.savez_compressed(path, **arrays)
+
+
+def run_steps(robot, server, goal, budget, switch, log, out=print, seed=0):
+    """The control loop: observe, plan toward the active goal, execute the first action; `log` fills as it goes.
+
+    `switch` lists the steps after which the paper protocol moves to the next goal (empty: the single goal). A
+    hardware or planner error propagates; the steps already taken stay in `log`. Step k plans with CEM seed
+    seed * 1000 + k (the offline check also seeds every row differently).
+    """
+    intent = None
+    for step in range(1, budget + 1):
+        gi = sum(step > s for s in switch)  # paper protocol: goals switch at fixed steps; plain: the one goal
+        if gi and step - 1 == switch[gi - 1]:
+            out(f"step {step}: switching to goal {gi + 1} of {goal['n_goals']}")
+        image, pose, jaw = robot.observe()
+        reply = post(server, "/plan", image=image.astype(np.uint8), pose=np.asarray(pose, float), jaw=float(jaw),
+                     goal_index=gi if switch else -1, seed=seed * 1000 + step)  # fmt: skip
+        for k, v in (("pose", pose), ("jaw", jaw), ("action", reply["action"]), ("scaled", reply["safety_scaled"]),
+                     ("executed_delta", reply["executed_delta"]), ("goal_energy", reply["goal_energy"]),
+                     ("plan_energy", reply["plan_energy"]), ("goal_index", reply["goal_index"]),
+                     ("gripper_held", reply.get("gripper_held", False)), ("gripper_intent", reply["gripper_intent"]),
+                     ("plan_seconds", reply["seconds"]), ("image", image.astype(np.uint8))):  # fmt: skip
+            log[k].append(v)
+        if reply["gripper_intent"] != intent:
+            robot.gripper(reply["gripper_intent"])
+            intent = reply["gripper_intent"]
+        robot.move(reply["target_pose"], STEP_S)
+        if step % 10 == 0 or step == 1:
+            d = 1e3 * np.asarray(reply["executed_delta"])
+            out(f"step {step}/{budget}: delta [{d[0]:+.1f} {d[1]:+.1f} {d[2]:+.1f}] mm, gripper {intent}, goal "
+                f"{reply['goal_index'] + 1}, energy {reply['goal_energy']:.4f}, plan {reply['seconds']:.1f} s"
+                f"{' (speed-limited)' if reply['safety_scaled'] else ''}")
+    return log
 
 
 def main():
@@ -106,10 +163,15 @@ def main():
     p.add_argument("--goal-image", help="goal photo (.npy 224x224x3 RGB from --save-goal-image, or .png)")
     p.add_argument("--goal-images", help="paper protocol: grasped,near-target,final photos (comma-separated)")
     p.add_argument("--schedule", help="paper protocol: steps per goal, e.g. 25,23,12 (default: the server's)")
+    p.add_argument("--fix-x", dest="fix_x", action="store_true", help="deviation: hold x at 0 for this run")
+    p.add_argument("--hold-grasp", dest="hold_grasp", action="store_true",
+                   help="deviation (paper protocol): gripper held closed while goal 2 is active")  # fmt: skip
     p.add_argument("--save-goal-image", help="capture the current transformed frame to this .npy and exit")
     p.add_argument("--steps", type=int, default=None, help="step budget (overrides the default)")
     p.add_argument("--steps-per-move", type=int, default=120, help="~32 s per game move at 0.267 s per step")
     p.add_argument("--log", default="vjepa_plain_run.npz")
+    p.add_argument("--no-park", dest="no_park", action="store_true",
+                   help="start from the current pose instead of opening the gripper and parking at the start pose")
     p.add_argument("--tower-hanoi", default=None, help="tower_hanoi checkout (for its robot/config)")
     p.add_argument("--address", default="192.168.1.3")
     p.add_argument("--dry-run", action="store_true")
@@ -135,10 +197,13 @@ def main():
         else:
             if not (args.goal_board or args.goal_image):
                 p.error("give --goal-board and/or --goal-image")
+            if args.hold_grasp:
+                p.error("--hold-grasp is a paper-protocol option")
+            opts = {"fix_x": True} if args.fix_x else {}
             goal = (
-                post(args.server, "/goal", goal_image=load_image(args.goal_image).astype(np.uint8))
+                post(args.server, "/goal", goal_image=load_image(args.goal_image).astype(np.uint8), **opts)
                 if args.goal_image
-                else post(args.server, "/goal", goal_board=args.goal_board)
+                else post(args.server, "/goal", goal_board=args.goal_board, **opts)
             )
             budget, switch = args.steps, []
             if budget is None:
@@ -146,35 +211,16 @@ def main():
                     p.error("the default budget needs --start and --goal-board (or pass --steps)")
                 budget = 2 * board_distance(args.start, args.goal_board) * args.steps_per_move
         print(f"goal: {goal['goal']}; budget {budget} steps ({budget * STEP_S:.0f} s)", flush=True)
-        log = {k: [] for k in ("pose", "jaw", "action", "executed_delta", "goal_energy", "plan_energy", "scaled",
-                               "goal_index", "gripper_held")}  # fmt: skip
-        intent = None
-        for step in range(1, budget + 1):
-            gi = sum(step > s for s in switch)  # paper protocol: goals switch at fixed steps; plain: the one goal
-            if gi and step - 1 == switch[gi - 1]:
-                print(f"step {step}: switching to goal {gi + 1} of {goal['n_goals']}", flush=True)
-            image, pose, jaw = robot.observe()
-            out = post(args.server, "/plan", image=image.astype(np.uint8), pose=np.asarray(pose, float),
-                       jaw=float(jaw), goal_index=gi if switch else -1)  # fmt: skip
-            if out["gripper_intent"] != intent:
-                robot.gripper(out["gripper_intent"])
-                intent = out["gripper_intent"]
-            robot.move(out["target_pose"], STEP_S)
-            for k, v in (("pose", pose), ("jaw", jaw), ("action", out["action"]), ("scaled", out["safety_scaled"]),
-                         ("executed_delta", out["executed_delta"]), ("goal_energy", out["goal_energy"]),
-                         ("plan_energy", out["plan_energy"]), ("goal_index", out["goal_index"]),
-                         ("gripper_held", out.get("gripper_held", False))):  # fmt: skip
-                log[k].append(v)
-            if step % 10 == 0 or step == 1:
-                d = 1e3 * np.asarray(out["executed_delta"])
-                print(f"step {step}/{budget}: delta [{d[0]:+.1f} {d[1]:+.1f} {d[2]:+.1f}] mm, gripper {intent}, "
-                      f"goal energy {out['goal_energy']:.4f}{' (speed-limited)' if out['safety_scaled'] else ''}",
-                      flush=True)  # fmt: skip
+        if not args.no_park:  # the server refuses poses outside the trained workspace, so start where training did
+            robot.gripper("open")
+            robot.park(START_POSE)
+        log = new_log()
+        run_steps(robot, args.server, goal, budget, switch, log)
         print("budget used; check the board (e.g. robot.check_board) and record success/failure.", flush=True)
         return 0
     finally:
         if "log" in locals() and log["pose"]:
-            np.savez_compressed(args.log, **{k: np.asarray(v) for k, v in log.items()})
+            save_log(args.log, log)
             print(f"step log -> {args.log}")
         robot.close()
 

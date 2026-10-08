@@ -21,8 +21,9 @@
 # row the planner makes one step toward the active goal, and that step is compared with the expert's actual next step
 # (rows r -> r + 8, ending no later than the final goal frame). --switch stage is perfect switching, an upper bound:
 # the active goal is the first one the expert has not reached by its next sample. --switch time is the paper's fixed
-# schedule, with the goal chosen from k alone. The switch points are the training split's median step at which the
-# expert reaches goals 1 and 2.
+# schedule, with the goal chosen from k alone. --schedule transition (default; the arm server's rule): the switch points
+# are the median step at which the training demos of the SAME transition reach goals 1 and 2 (all training moves if the
+# transition has none). --schedule global: the median over all training moves, as in the first runs (before 2026-10-08).
 #
 # Deviations from the paper, stated:
 #   - The repo planner (notebooks/utils/mpc_utils.py::cem) clips each axis to a box (maxnorm 0.05 m), where the paper
@@ -101,6 +102,7 @@ def main():
     p.add_argument("--goal_archive", required=True, help="training split: goal frames (train source) and schedule")
     p.add_argument("--goals", choices=("paper3", "final_only"), default="paper3")
     p.add_argument("--switch", choices=("stage", "time"), default="time")
+    p.add_argument("--schedule", choices=("transition", "global"), default="transition", help="time-switch medians")
     p.add_argument("--goal_source", choices=("train", "test"), default="train")
     p.add_argument("--final_stage", type=int, choices=(8, 9), default=8)
     p.add_argument("--max_rows", type=int, default=600)
@@ -146,7 +148,10 @@ def main():
 
     train_moves, train_paths, train_incomplete = moves(args.goal_archive)
     test_moves, test_paths, test_incomplete = moves(args.archive)
-    reach = time_schedule(train_moves, args.final_stage)  # steps at which the expert reaches goals 1, 2, 3
+    reach = time_schedule(train_moves, args.final_stage)  # steps at which the expert reaches goals 1, 2, 3 (global)
+    reach_by = {}  # transition -> its own medians (the arm server's rule)
+    for t in {m["transition"] for m in train_moves}:
+        reach_by[t] = time_schedule([m for m in train_moves if m["transition"] == t], args.final_stage)
     exemplar = {}  # transition -> (file, goal rows) of its first complete training move
     for m in train_moves:
         exemplar.setdefault(m["transition"], (m["file"], goal_rows(m, args.final_stage)))
@@ -166,7 +171,8 @@ def main():
             if r not in usable or r + FSTP not in usable:
                 continue
             g_stage = next(g for g in (1, 2, 3) if g_test[g] >= r + FSTP)
-            g_time = 1 if k < reach[0] else (2 if k < reach[1] else 3)
+            rt = reach_by.get(m["transition"], reach) if args.schedule == "transition" else reach
+            g_time = 1 if k < rt[0] else (2 if k < rt[1] else 3)
             g = 3 if args.goals == "final_only" else (g_stage if args.switch == "stage" else g_time)
             cands.append({"move": mi, "row": r, "k": k, "goal": g, "goal_stage_switch": g_stage})
     pick = np.linspace(0, len(cands) - 1, min(args.max_rows, len(cands))).astype(int)
@@ -228,7 +234,9 @@ def main():
         "hold_grasp": args.hold_grasp,
         "goal_frames": {"1": "end of stage 4 (grasp)", "2": "end of stage 6 (transit)",
                         "3": f"end of stage {args.final_stage} ({STAGES[args.final_stage]})"},  # fmt: skip
+        "schedule": args.schedule,
         "time_schedule_reach_steps": reach,
+        "time_schedule_reach_steps_by_transition": reach_by if args.schedule == "transition" else None,
         "time_schedule_steps_per_goal": [reach[0], reach[1] - reach[0], reach[2] - reach[1]],
         "planner": cem_kw | {"source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1"},
         "checkpoint": args.checkpoint,

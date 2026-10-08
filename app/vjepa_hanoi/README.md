@@ -127,8 +127,10 @@ For one ring transfer, the three goals are:
   retreat instead.
 
 Each goal is one frame of a training move of the same board transition. These stand in for the experimenter-provided
-images of the paper; on the arm you can pass your own photos instead. The schedule is the training split's median
-number of expert steps per goal: 25 / 23 / 12 steps on both the play and the expert training splits.
+images of the paper; on the arm you can pass your own photos instead. The schedule is the median number of expert
+steps per goal over the training demos of the same move (all training moves for uploaded photos). Over all moves it is
+25 / 23 / 12 steps on the play and the six-task splits. For the six one-move cases it is 29 / 16 / 11 (AAAA>BAAA,
+CCCC>BCCC), 29 / 24 / 11 (AAAA>CAAA, CCCC>ACCC) and 26 / 16 / 12 (BBBB>ABBB, BBBB>CBBB).
 
 - **Offline check.** `paper_protocol_eval.py` steps along held-out moves and compares the planner's step toward the
   active goal with the expert's next step.
@@ -144,10 +146,10 @@ number of expert steps per goal: 25 / 23 / 12 steps on both the play and the exp
   - `--start` and `--goal-board` must be one ring transfer apart.
   - `--goal-images grasped.npy,near.npy,final.npy` uses your own photos.
   - `--schedule 25,23,12` overrides the switch points; the budget is the schedule total.
-  - `--fix_x` on the server (off by default) holds x at 0 with the repo planner's own `axis` option. This is a
-    disclosed deviation. x never varies in this data, so the model cannot learn what it does, and the planned x is
-    otherwise random (a median of 26 mm per step offline). Running with and without it separates x drift from the
-    protocol itself.
+  - `--fix_x` on the server (off by default) holds x at 0 with the repo planner's own `axis` option, a disclosed
+    deviation. It is only meaningful for play-trained models. In the play data x stays on the peg line, so those
+    models cannot learn it and plan it at random (a median of 26 mm per step offline). Never use it from the episode
+    start pose: in the one-move data the arm starts 8 cm back and moves x from 0.414 to 0.498 m during the approach.
   - `--hold_grasp` on the server (off by default, paper protocol only) holds the gripper closed while goal 2 (ring
     above the target) is active, using the repo planner's own `close_gripper` option. Also a disclosed deviation:
     without it, the planner commands "open" on most carrying steps offline and is expected to drop the ring.
@@ -159,6 +161,42 @@ Deviations from the paper:
 
 This protocol covers one game move. A 15-move task would need subgoal images for every move, i.e. a task planner,
 which the published method does not have.
+
+## Real-robot one-move test (the six first moves, `one_move_test.py`)
+
+The model is A fine-tuned on `data/expert6_first_move`. That is the same 48 training episodes the VLA and
+world-action models get: the first move of each H15 task, ring 1 off a full stack.
+
+1. **GPU node.** `sbatch app/vjepa_hanoi/serve.sbatch` starts `goal_planner --protocol paper` with that model and
+   that dataset's training demos as goal images, for 8 h. `grep -A3 TUNNEL` on its log gives the ssh command.
+2. **Robot host, terminal 1.** Open the tunnel: `ssh -N -L 8766:<gpu node>:8766 <cluster login>`. Then check it with
+   `curl -s http://127.0.0.1:8766/health`, which shows the checkpoint, protocol and safety box.
+3. **Robot host, terminal 2.** Pull this branch, then run
+   `PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_<date>`.
+   - It runs the six cases × `faithful,hold` (12 runs), prompting you to set the board before each run and asking
+     afterwards how far the move got (0–5, or x = invalid, redo).
+   - `--resume` continues a session.
+   - `--repeats N` repeats every case and variant.
+   - Each run's log has every step with its camera frame; one row per attempt goes to `results.jsonl`.
+4. **Rehearse on the robot host first.** Add `--dry-run --replay-archive <expert6_first_move/test.npz> --yes`. This
+   uses tower_hanoi's DryRunArm and the recorded test move as the camera, and needs the recordings.
+
+Before the arm moves, the runner refuses to start unless the robot host's tower_hanoi config matches the recordings:
+- the gripper opens to 0.034 (`open_fraction` 0.85 in `workspace.json`);
+- `wm-transform.json` is square_roi 151/90/360 → 224;
+- the open jaw reading is at least 0.033.
+
+Each run starts from the recorded episode start pose (0.4140, 0.0157, 0.1911), reached by going straight up, then one
+leg above the rods.
+
+Server-side safety:
+- every step is clamped to the workspace box of the training data (never more than 1 mm below its lowest tool height),
+  then limited to 0.10 m/s;
+- the orientation is always the recorded one;
+- a pose outside the box is refused.
+
+Ctrl-C stops a run with no further motion, then asks before lifting. On exit the arm lifts straight up before
+tower_hanoi parks it. The e-stop remains the real safety.
 
 Task-specific planning aids (a symbolic route solver, per-stage subgoal images, holding x fixed, a step cap) are kept
 separately in `app/vjepa_hanoi_oracle/`. They use privileged information and are not part of this baseline.
