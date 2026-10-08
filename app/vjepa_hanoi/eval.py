@@ -39,7 +39,7 @@ STAGES = {
     11: "return_initial_z",
     12: "hold",
 }
-KINDS = {0: "walk", 1: "crop", 2: "clip", 3: "expert_episode"}
+KINDS = {0: "walk", 1: "crop", 2: "clip", 3: "expert_episode", 4: "expert_move"}
 METRICS = ("tf", "rollout", "copy_tf", "copy_rollout", "shuffled_tf")
 
 
