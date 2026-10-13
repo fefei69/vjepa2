@@ -23,6 +23,14 @@
 # "open" on most carrying steps (paper_protocol/SUMMARY.md) and drops the ring.
 # The two server flags are defaults. A /goal request may override them for that run (fix_x, hold_grasp), so one
 # server can serve every variant of a test session. Every reply reports the options in force.
+# --predictor_chunk N (off by default) passes CEM's samples through the predictor N at a time. The per-sample math is
+# unchanged (chunks of 100 and 200 gave bit-identical plans); only the peak GPU memory drops. One batch of 800 runs
+# out of memory on a 16 GB GPU; 200 with PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True peaks at 12.4 GiB (RTX 5080,
+# about 25 s per step).
+# --rollout H / --samples N (off by default; a disclosed deviation from the protocol's horizon 1 and 800 samples)
+# override the planner. Horizon 1 is greedy: from the hover it closes the jaws at once, because that changes the next
+# frame most toward "ring grasped". On a 16 GB GPU, H >= 2 needs --samples 400 and --predictor_chunk 100 (H=3: about
+# 80 s per step on an RTX 5080, under the client's 120 s timeout).
 #
 # Goals (POST /goal, an .npz body; optional fix_x () and hold_grasp () booleans override the server defaults):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -78,9 +86,22 @@ PLANNERS = {  # notebooks/utils/world_model_wrapper.py defaults; the paper's rob
 }
 
 
+def chunked(step_fn, n):
+    """step_fn over the sample batch in slices of n: the same per-sample math with a lower peak GPU memory."""
+
+    def step(reps, actions, poses):
+        if reps.size(0) <= n:
+            return step_fn(reps, actions, poses)
+        outs = [step_fn(r, a, p) for r, a, p in zip(reps.split(n), actions.split(n), poses.split(n))]
+        return torch.cat([o[0] for o in outs]), torch.cat([o[1] for o in outs])
+
+    return step
+
+
 class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
-                 fix_x=False, hold_grasp=False, goal_bundle=None):
+                 fix_x=False, hold_grasp=False, goal_bundle=None, predictor_chunk=0, planner_overrides=None):
+        self.planner_overrides = {k: v for k, v in (planner_overrides or {}).items() if v is not None}
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
         d = cfg["data"]
@@ -96,8 +117,13 @@ class GoalPlanner:
         del ckpt
         self.encoder.eval()
         self.predictor.eval()
+        for m in (self.encoder, self.predictor):  # frozen: autocast then caches no bf16 copy of the weights (~0.6 GB)
+            m.requires_grad_(False)
         self.mpc = load_mpc_utils()
         self.step_fn = make_step_fn(self.predictor, self.tpf, self.norm, self.mpc.compute_new_pose)
+        self.predictor_chunk = predictor_chunk
+        if predictor_chunk:
+            self.step_fn = chunked(self.step_fn, predictor_chunk)
         self.transform = make_transforms(
             random_horizontal_flip=False,
             random_resize_aspect_ratio=(1.0, 1.0),
@@ -142,7 +168,7 @@ class GoalPlanner:
         if hold_grasp and self.protocol != "paper":
             raise ValueError("hold_grasp is a paper-protocol option (goal 2): start the server with --protocol paper")
         self.options = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp)}
-        self.cem_kw = dict(PLANNERS[self.protocol])
+        self.cem_kw = dict(PLANNERS[self.protocol]) | self.planner_overrides  # --rollout / --samples, if given
         if fix_x:  # disclosed deviation: x stays on the peg line in the play data, so a play model cannot learn it
             self.cem_kw["axis"] = {0: 0.0}  # the repo planner's own option for holding an action dimension
 
@@ -282,7 +308,7 @@ def serve(planner, host, port):
         def do_GET(self):
             if self.path == "/health":
                 self._send(200, {"ok": True, "checkpoint": planner.checkpoint, "goal_archive": planner.goal_archive,
-                                 "goal_bundle": planner.goal_bundle,
+                                 "goal_bundle": planner.goal_bundle, "predictor_chunk": planner.predictor_chunk,
                                  "protocol": planner.protocol, "planner": planner.cem_kw, "options": planner.options,
                                  "max_step_m": planner.max_step, "box": {"min": planner.box[0].tolist(),
                                  "max": planner.box[1].tolist(), "source": planner.box[2]}, "goal": planner.goal_desc,
@@ -334,9 +360,15 @@ def main():
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8766)
     p.add_argument("--max_speed", type=float, default=0.10, help="execution safety limit (m/s), after planning")
+    p.add_argument("--predictor_chunk", type=int, default=0,
+                   help="CEM samples per predictor call (0 = all): same plans, less GPU memory (200 for 16 GB)")
+    p.add_argument("--rollout", type=int, default=None, help="deviation: planning horizon (default: the protocol's)")
+    p.add_argument("--samples", type=int, default=None, help="deviation: CEM samples (default: the protocol's)")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
-                          args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle)  # fmt: skip
+                          args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle,
+                          predictor_chunk=args.predictor_chunk,
+                          planner_overrides={"rollout": args.rollout, "samples": args.samples})  # fmt: skip
     serve(planner, args.host, args.port)
 
 
