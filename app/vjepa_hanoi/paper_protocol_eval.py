@@ -27,7 +27,8 @@
 #
 # Deviations from the paper, stated:
 #   - The repo planner (notebooks/utils/mpc_utils.py::cem) clips each axis to a box (maxnorm 0.05 m), where the paper
-#     uses an L1 ball of radius 0.075. Neither binds here: expert steps are <= 3.3 cm.
+#     uses an L1 ball of radius 0.075. Neither binds the expert (steps <= 3.3 cm), but CEM's plans sit at the clip
+#     in most rows (robot_results/2026-10-13/RESULTS.md).
 #   - The paper's 4/10/4-step schedule is specific to its task, so the Hanoi schedule is set from expert timing.
 #   - --fix_x (off by default) holds x at 0 via the repo planner's axis option. x never varies in this data, so
 #     the model cannot learn its effect, and the planned x is otherwise random.

@@ -1,5 +1,5 @@
 # Compare the maxnorm sweep, row-paired (same held-out rows and CEM seeds in every config).
-#   python -I analyze.py <sweep dir>
+#   python -I sweep_analyze.py <dir with ppe_maxnorm_*.json and *_rows.npz>
 import glob
 import json
 import os
@@ -37,7 +37,7 @@ for mn, res, r in runs:
     p3 = r["plan"][:, :3] * 1e3
     pmag = np.linalg.norm(p3, axis=1)
     cos3 = np.sum(p3[mov] * t3[mov], 1) / (pmag[mov] * tmag[mov] + 1e-9)
-    at_bound = np.mean(np.any(np.abs(r["plan"][:, :3]) >= 0.999 * mn, axis=1))
+    at_bound = np.mean(np.any(np.abs(r["plan"][:, :3]) >= 0.99 * mn, axis=1))
     scale = np.minimum(1.0, MAX_STEP * 1e3 / np.maximum(pmag, 1e-9))  # what the server would execute
     exec_err = np.linalg.norm(p3 * scale[:, None] - t3, axis=1)
     grip_sat = np.mean(np.abs(r["plan"][:, 6]) >= 0.74)
@@ -61,7 +61,7 @@ for g in (1, 2, 3):
     print(f"  goal {g} ({m.sum()} rows, {(m & mov).sum()} moving): " + " | ".join(cells))
 
 print("\nmedian error of the executed step (mm) if each planned step were capped at c mm (rows: maxnorm):")
-caps = [26.7, 17.5, 10.0, 7.5, 5.0]
+caps = [26.7, 16.7, 10.0, 8.0, 5.0]  # server caps: --max_speed 0.10 / 0.0625 / 0.03
 print(f"{'':>8}" + "".join(f"{f'cap {c:g}':>10}" for c in caps) + f"{'expert size':>13}{'zero step':>11}")
 for mn, _, r in runs:
     p3, t3_ = r["plan"][:, :3] * 1e3, r["true"][:, :3] * 1e3

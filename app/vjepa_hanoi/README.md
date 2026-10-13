@@ -155,14 +155,18 @@ CCCC>BCCC), 29 / 24 / 11 (AAAA>CAAA, CCCC>ACCC) and 26 / 16 / 12 (BBBB>ABBB, BBB
     without it, the planner commands "open" on most carrying steps offline and is expected to drop the ring.
 
 Deviations from the paper:
-- The repo planner clips each axis to ±0.05 m where the paper uses an L1 ball of radius 0.075. Neither binds here:
-  expert steps are at most 3.3 cm.
+- The repo planner clips each axis to ±0.05 m where the paper uses an L1 ball of radius 0.075. Neither binds the
+  expert (steps at most 3.3 cm), but CEM's plans do sit at the clip in 67-82% of rows
+  (`robot_results/2026-10-13/RESULTS.md`).
 - The paper's 4 / 10 / 4-step schedule belongs to its own task, so the Hanoi schedule is set from expert timing.
 
 This protocol covers one game move. A 15-move task would need subgoal images for every move, i.e. a task planner,
 which the published method does not have.
 
 ## Real-robot one-move test (the six first moves, `one_move_test.py`)
+
+**Results so far:** `robot_results/2026-10-13/RESULTS.md` (first runs on the arm: the paper protocol closes the
+gripper above the ring at step 1; offline probes of maxnorm, step caps, horizon and simple subgoals; next steps).
 
 The model is A fine-tuned on `data/expert6_first_move`. That is the same 48 training episodes the VLA and
 world-action models get: the first move of each H15 task, ring 1 off a full stack. The planning server runs on the

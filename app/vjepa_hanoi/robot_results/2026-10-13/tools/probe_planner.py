@@ -5,6 +5,8 @@
 #   --mode simple   simple goals from a training demo: "descended" (end of the descend stage) from the hover and along
 #                   the descent, then "grasped" (end of the grasp stage) from the bottom of the descent
 # Prints the planner's first action (and for H > 1 the whole plan) next to the expert's next step.
+# Held-out rows start at the last approach row (stage 2 end). --transition, --recording and --live go together: the
+# recording must hold that transition (episode 0 = first training demo, 9 = held-out); --live '' skips the live frame.
 #
 #   PYTHONPATH=<vjepa2> python app/vjepa_hanoi/robot_results/2026-10-13/tools/probe_planner.py --mode horizon \
 #       --bundle /scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_firstmove --samples 400 --horizons 1,2,3
