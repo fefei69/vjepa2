@@ -31,6 +31,17 @@
 # override the planner. Horizon 1 is greedy: from the hover it closes the jaws at once, because that changes the next
 # frame most toward "ring grasped". On a 16 GB GPU, H >= 2 needs --samples 400 and --predictor_chunk 100 (H=3: about
 # 80 s per step on an RTX 5080, under the client's 120 s timeout).
+# Options for the descend/grasp failure seen on the arm (robot_results/2026-10-13/RESULTS.md), off by default; the
+# server flags are defaults and a /goal request may override hold_open, hold_xy and subgoals per run:
+#   planner deviations: --gripper_std / --gripper_clip (CEM's initial gripper std and clip; repo 1.0 and 0.75);
+#                       --subgoals stages (one goal per motion stage: the ends of descend, grasp, lift, transit, insert
+#                       and the final stage, from the same training demo, on the demos' median timing; needs a goal
+#                       bundle exported with stage frames, or --goal_archive)
+#   task aids:          --hold_open (gripper action held at 0 while the descend goal is active; --subgoals stages only)
+#                       --hold_xy (x/y actions held at 0 while a descend or grasp goal is active; with the paper's three
+#                       goals that is goal 1, which from the episode start also covers the approach: hover start only)
+#                       with --subgoals stages, --hold_grasp holds the gripper closed during lift, transit and insert
+# The rule per goal is paper_protocol_eval.aids, the same as offline.
 #
 # Goals (POST /goal, an .npz body; optional fix_x () and hold_grasp () booleans override the server defaults):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -70,7 +81,7 @@ from app.vjepa_droid.transforms import make_transforms
 from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.eval import build_models, strip_prefixes
 from app.vjepa_hanoi.hanoi import hanoi_states
-from app.vjepa_hanoi.paper_protocol_eval import goal_rows, moves, time_schedule
+from app.vjepa_hanoi.paper_protocol_eval import aids, goal_rows, goal_stages, moves, time_schedule
 from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn, rollout
 
 # fallback box when the goal archive has no measured_xyz: the six-task recordings (x 0.414-0.500, y -0.058-0.090,
@@ -100,7 +111,8 @@ def chunked(step_fn, n):
 
 class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
-                 fix_x=False, hold_grasp=False, goal_bundle=None, predictor_chunk=0, planner_overrides=None):
+                 fix_x=False, hold_grasp=False, goal_bundle=None, predictor_chunk=0, planner_overrides=None,
+                 hold_open=False, hold_xy=False, subgoals="paper3"):
         self.planner_overrides = {k: v for k, v in (planner_overrides or {}).items() if v is not None}
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -135,7 +147,8 @@ class GoalPlanner:
         )
         self.checkpoint = checkpoint
         self.protocol = protocol
-        self.defaults = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp)}
+        self.defaults = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp), "hold_open": bool(hold_open),
+                         "hold_xy": bool(hold_xy), "subgoals": subgoals}  # fmt: skip
         self.set_options(**self.defaults)
         self.final_stage = final_stage
         self.goal_archive = goal_archive
@@ -163,12 +176,19 @@ class GoalPlanner:
         self.goal_desc = None
         self._train = None
 
-    def set_options(self, fix_x, hold_grasp):
-        """The run's deviations (both off by default): hold x at 0, hold the gripper closed during goal 2."""
-        if hold_grasp and self.protocol != "paper":
-            raise ValueError("hold_grasp is a paper-protocol option (goal 2): start the server with --protocol paper")
-        self.options = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp)}
-        self.cem_kw = dict(PLANNERS[self.protocol]) | self.planner_overrides  # --rollout / --samples, if given
+    def set_options(self, fix_x, hold_grasp, hold_open=False, hold_xy=False, subgoals="paper3"):
+        """The run's deviations (all off by default): hold x at 0, hold the gripper closed while carrying, hold it
+        open during the descend goal, hold x/y during the descend and grasp goals, one goal per motion stage."""
+        if (hold_grasp or hold_open or hold_xy or subgoals != "paper3") and self.protocol != "paper":
+            raise ValueError("hold_grasp / hold_open / hold_xy / subgoals are paper-protocol options: start the server "
+                             "with --protocol paper")  # fmt: skip
+        if subgoals not in ("paper3", "stages"):
+            raise ValueError(f"subgoals must be paper3 or stages, not {subgoals}")
+        if hold_open and subgoals != "stages":
+            raise ValueError("hold_open acts on the descend goal: use subgoals stages")
+        self.options = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp), "hold_open": bool(hold_open),
+                        "hold_xy": bool(hold_xy), "subgoals": subgoals}  # fmt: skip
+        self.cem_kw = dict(PLANNERS[self.protocol]) | self.planner_overrides  # --rollout / --samples etc., if given
         if fix_x:  # disclosed deviation: x stays on the peg line in the play data, so a play model cannot learn it
             self.cem_kw["axis"] = {0: 0.0}  # the repo planner's own option for holding an action dimension
 
@@ -194,22 +214,31 @@ class GoalPlanner:
         with h5py.File(self.training_moves()[1][file], "r") as h:
             return h["pixels"][row]
 
-    def schedule(self, transition=None):
-        """Paper protocol: median model steps the expert spends on goals 1, 2 and 3, over the training demos of
+    def schedule(self, transition=None, stages=None):
+        """Paper protocol: median model steps the expert spends on each goal, over the training demos of
         `transition` (all training moves if None or if it has none)."""
         train = self.training_moves()[0]
         same = [m for m in train if m["transition"] == transition]
-        reach = time_schedule(same or train, self.final_stage)
-        return [reach[0], reach[1] - reach[0], reach[2] - reach[1]]
+        reach = time_schedule(same or train, self.final_stage, stages)
+        return np.diff([0] + reach).tolist()
 
-    def set_goal(self, images=None, board=None, transition=None, fix_x=None, hold_grasp=None):
+    def set_goal(self, images=None, board=None, transition=None, fix_x=None, hold_grasp=None, hold_open=None,
+                 hold_xy=None, subgoals=None):
         if (images is not None and len(images) > 1 or transition) and self.protocol != "paper":
             raise ValueError("subgoal lists are the paper protocol: start the server with --protocol paper")
-        self.set_options(self.defaults["fix_x"] if fix_x is None else fix_x,
-                         self.defaults["hold_grasp"] if hold_grasp is None else hold_grasp)  # fmt: skip
+        given = {"fix_x": fix_x, "hold_grasp": hold_grasp, "hold_open": hold_open, "hold_xy": hold_xy,
+                 "subgoals": subgoals}  # fmt: skip
+        self.set_options(**{k: self.defaults[k] if v is None else v for k, v in given.items()})
+        stages_mode = self.options["subgoals"] == "stages"
+        if stages_mode and transition is None:
+            raise ValueError("subgoals stages needs a transition (its training demo's stage ends)")
+        gst = goal_stages(self.options["subgoals"], self.final_stage)
+        self.goal_stages = None  # motion stage of each goal frame, for the per-goal options (aids)
         if images is not None:
             self.goals = [self.encode(np.asarray(im)[None]) for im in images]
             desc = f"{len(images)} uploaded image(s)"
+            if len(images) == 3 and self.protocol == "paper":  # the paper's three: grasped, near the target, final
+                self.goal_stages = list(gst)
         elif board is not None:
             train, _ = self.training_moves()
             m = next((m for m in train if m["transition"].endswith(">" + board)), None)
@@ -218,10 +247,24 @@ class GoalPlanner:
             row = int(m["rows"][-1])
             self.goals = [self.encode(self.training_frame(m["file"], row)[None])]
             desc = f"board {board}: end of training move {m['transition']} (file {m['file']}, row {row})"
+        elif transition is not None and self.bundle is not None and stages_mode:
+            if transition not in self.bundle:
+                raise ValueError(f"the goal bundle has no move {transition}; it has {sorted(self.bundle)}")
+            if "stage_frames" not in self.bundle_data:
+                raise ValueError("this goal bundle has no stage frames: re-export it (export_robot_bundle --goals_only)")
+            i = self.bundle[transition]
+            if [int(x) for x in self.bundle_data["stage_goal_stages"]] != list(gst):
+                raise ValueError(f"bundle stage goals {self.bundle_data['stage_goal_stages']} != {gst}")
+            self.goals = [self.encode(f[None]) for f in self.bundle_data["stage_frames"][i]]
+            self.goal_stages = list(gst)
+            desc = (f"transition {transition}: bundled training frames (file "
+                    f"{self.bundle_data['stage_frame_sources'][i][0][0]}), ends of stages {list(gst)} (rows "
+                    f"{[int(r) for _, r in self.bundle_data['stage_frame_sources'][i]]})")  # fmt: skip
         elif transition is not None and self.bundle is not None:
             if transition not in self.bundle:
                 raise ValueError(f"the goal bundle has no move {transition}; it has {sorted(self.bundle)}")
             i = self.bundle[transition]
+            self.goal_stages = list(gst)
             self.goals = [self.encode(self.bundle_data["frames"][i, k][None]) for k in range(3)]
             src = self.bundle_data["frame_sources"][i]
             desc = (f"transition {transition}: bundled training frames (file {src[0][0]}) ring grasped (row "
@@ -232,10 +275,15 @@ class GoalPlanner:
             m = next((m for m in train if m["transition"] == transition), None)
             if m is None:
                 raise ValueError(f"no complete training move {transition} (one legal ring transfer, e.g. AAAA>BAAA)")
-            g = goal_rows(m, self.final_stage)
-            self.goals = [self.encode(self.training_frame(m["file"], g[k])[None]) for k in (1, 2, 3)]
-            desc = (f"transition {transition}: training frames (file {m['file']}) ring grasped (row {g[1]}), above "
-                    f"the target (row {g[2]}), final = end of stage {self.final_stage} (row {g[3]})")  # fmt: skip
+            g = goal_rows(m, self.final_stage, gst)
+            self.goals = [self.encode(self.training_frame(m["file"], g[k])[None]) for k in range(1, len(gst) + 1)]
+            self.goal_stages = list(gst)
+            if stages_mode:
+                desc = (f"transition {transition}: training frames (file {m['file']}), ends of stages {list(gst)} "
+                        f"(rows {list(g.values())})")  # fmt: skip
+            else:
+                desc = (f"transition {transition}: training frames (file {m['file']}) ring grasped (row {g[1]}), "
+                        f"above the target (row {g[2]}), final = end of stage {self.final_stage} (row {g[3]})")
         else:
             raise ValueError("give goal_image(s), goal_board or transition")
         self.goal_desc = desc
@@ -243,10 +291,14 @@ class GoalPlanner:
                "options": self.options}  # fmt: skip
         if self.protocol == "paper" and self.bundle is not None:
             i = self.bundle.get(transition)
-            out["schedule"] = (self.bundle_data["schedules"][i] if i is not None
-                               else self.bundle_data["global_schedule"]).tolist()  # fmt: skip
+            if stages_mode:
+                out["schedule"] = self.bundle_data["stage_schedules"][i].tolist()
+            else:
+                out["schedule"] = (self.bundle_data["schedules"][i] if i is not None
+                                   else self.bundle_data["global_schedule"]).tolist()  # fmt: skip
         elif self.protocol == "paper" and self.goal_archive is not None:
-            out["schedule"] = self.schedule(transition)
+            out["schedule"] = self.schedule(transition, gst)
+        out["goal_stages"] = self.goal_stages
         out["box"] = {"min": self.box[0].tolist(), "max": self.box[1].tolist(), "source": self.box[2]}
         return out
 
@@ -266,11 +318,16 @@ class GoalPlanner:
         s7 = hanoi_states(pose[None], np.full((1, 8), float(jaw)))
         z0 = self.encode(np.asarray(image)[None])
         s = torch.as_tensor(s7[None], dtype=torch.float32, device=self.device)
-        held = self.options["hold_grasp"] and len(self.goals) == 3 and goal_index % 3 == 1  # carrying toward goal 2
+        cem_kw, close = self.cem_kw, None
+        if self.goal_stages is not None:  # per-goal options (paper_protocol_eval.aids; none apply by default)
+            o = self.options
+            axis, close = aids(self.goal_stages[goal_index], o["fix_x"], o["hold_grasp"], o["hold_open"], o["hold_xy"])
+            cem_kw = cem_kw | {"axis": axis}
+        held = close is not None
         torch.manual_seed(seed)
         with self._autocast():
             plan = self.mpc.cem(context_frame=z0, context_pose=s, goal_frame=goal, world_model=self.step_fn,
-                                close_gripper=0 if held else None, **self.cem_kw)[0].float()  # fmt: skip
+                                close_gripper=close, **cem_kw)[0].float()  # fmt: skip
             final = rollout(self.step_fn, z0, s, plan[None]).float()
         a = plan[0].cpu().numpy()  # execute the first planned action, then replan
         # safety, after planning: clamp the target into the box, then cap the executed step at max_step
@@ -290,6 +347,7 @@ class GoalPlanner:
             "goal_index": goal_index % len(self.goals),
             "seed": seed,
             "gripper_held": bool(held),
+            "axis_held": {int(k): float(v) for k, v in cem_kw.get("axis", {}).items()},
             "goal_energy": float(torch.mean(torch.abs(z0 - goal))),
             "plan_energy": float(torch.mean(torch.abs(final - goal))),
         }
@@ -325,7 +383,9 @@ def serve(planner, host, port):
                         images = [z["goal_image"]]
                     board = str(z["goal_board"]) if "goal_board" in z.files else None
                     transition = str(z["transition"]) if "transition" in z.files else None
-                    opts = {k: bool(z[k]) for k in ("fix_x", "hold_grasp") if k in z.files}
+                    opts = {k: bool(z[k]) for k in ("fix_x", "hold_grasp", "hold_open", "hold_xy") if k in z.files}
+                    if "subgoals" in z.files:
+                        opts["subgoals"] = str(z["subgoals"])
                     return self._send(200, planner.set_goal(images=images, board=board, transition=transition, **opts))
                 if self.path == "/plan":
                     t0 = time.time()
@@ -364,11 +424,19 @@ def main():
                    help="CEM samples per predictor call (0 = all): same plans, less GPU memory (200 for 16 GB)")
     p.add_argument("--rollout", type=int, default=None, help="deviation: planning horizon (default: the protocol's)")
     p.add_argument("--samples", type=int, default=None, help="deviation: CEM samples (default: the protocol's)")
+    p.add_argument("--gripper_std", type=float, default=None, help="deviation: CEM initial gripper std (repo 1.0)")
+    p.add_argument("--gripper_clip", type=float, default=None, help="deviation: CEM gripper clip (repo 0.75)")
+    p.add_argument("--subgoals", choices=("paper3", "stages"), default="paper3",
+                   help="deviation: stages = one goal per motion stage (default: the paper's three)")
+    p.add_argument("--hold_open", action="store_true", help="task aid, off by default: gripper open, descend goal")
+    p.add_argument("--hold_xy", action="store_true", help="task aid, off by default: x/y held, descend/grasp goals")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
                           args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle,
                           predictor_chunk=args.predictor_chunk,
-                          planner_overrides={"rollout": args.rollout, "samples": args.samples})  # fmt: skip
+                          planner_overrides={"rollout": args.rollout, "samples": args.samples,
+                                             "gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip},
+                          hold_open=args.hold_open, hold_xy=args.hold_xy, subgoals=args.subgoals)  # fmt: skip
     serve(planner, args.host, args.port)
 
 

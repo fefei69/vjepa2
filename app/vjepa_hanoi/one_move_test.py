@@ -64,7 +64,8 @@ from app.vjepa_hanoi.robot_io import RECORDED_OPEN_COMMAND, SPEED_CAP_M_S, START
 
 BOARDS = ["".join(b) for b in itertools.product("ABC", repeat=4)]  # board_indices order, ring 1 first
 CASES = ["AAAA>BAAA", "AAAA>CAAA", "BBBB>ABBB", "BBBB>CBBB", "CCCC>ACCC", "CCCC>BCCC"]
-VARIANTS = {"faithful": {"fix_x": False, "hold_grasp": False}, "hold": {"fix_x": False, "hold_grasp": True}}
+_OFF = {"fix_x": False, "hold_grasp": False, "hold_open": False, "hold_xy": False, "subgoals": "paper3"}
+VARIANTS = {"faithful": _OFF, "hold": _OFF | {"hold_grasp": True}}  # every server option, so /goal echoes them exactly
 PROGRESS = {  # furthest point the move reached, judged by the operator
     "0": "never reached the ring",
     "1": "reached the ring, no grasp",

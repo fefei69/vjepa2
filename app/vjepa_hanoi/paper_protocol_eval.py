@@ -34,6 +34,20 @@
 #     the model cannot learn its effect, and the planned x is otherwise random.
 #   - --hold_grasp (off by default) holds the gripper closed while goal 2 is active, via the repo planner's
 #     close_gripper option.
+# Further options for the descend/grasp problem found on the arm (robot_results/2026-10-13/RESULTS.md), all off by
+# default, each labelled in the output:
+#   planner deviations (plain CEM / goal settings, no task knowledge in the planner):
+#   - --gripper_std S / --gripper_clip C: CEM's initial gripper std and clip (repo: 1.0 and 0.75)
+#   - --goals stages: one goal per motion stage instead of the paper's three: the ends of stages 3 descend, 4 grasp,
+#     5 lift, 6 transit, 7 insert and the final stage, from the same training demo, on the same kind of time schedule
+#   task aids (outside the paper baseline; they encode what the expert does in a stage):
+#   - --hold_open: gripper action held at 0 (no change: stays open) while a stage-3 (descend) goal is active, via the
+#     repo planner's axis option; needs --goals stages
+#   - --hold_xy: x and y actions held at 0 while a stage-3 or stage-4 goal (descend, grasp; paper goal 1) is active.
+#     With --goals paper3, goal 1 also covers the approach from the episode start, so use it from the hover only
+#   - in --goals stages mode --hold_grasp holds the gripper closed while the lift, transit and insert goals are active
+# --eval_stages 3,4 evaluates only rows in those motion stages (row selection, not a planner change): the arm runner
+# starts at the hover, so the approach rows (stages 1-2) do not apply to it.
 
 import argparse
 import itertools
@@ -56,6 +70,27 @@ from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn
 FSTP = 8  # raw rows per model step (30 Hz, fps 4)
 BOARDS = ["".join(b) for b in itertools.product("ABC", repeat=4)]  # board_indices order, ring 1 first
 GOAL_STAGES = (4, 6)  # goals 1 and 2: the last row of these motion stages; goal 3 is the end of --final_stage
+STAGE_GOALS = (3, 4, 5, 6, 7)  # --goals stages: descend, grasp, lift, transit, insert; then the end of --final_stage
+
+
+def goal_stages(goals, final_stage):
+    """Motion stage whose last row is each goal frame, goals in order."""
+    if goals == "stages":
+        return STAGE_GOALS + tuple(range(8, final_stage + 1))
+    return GOAL_STAGES + (final_stage,)
+
+
+def aids(stage, fix_x=False, hold_grasp=False, hold_open=False, hold_xy=False):
+    """The repo planner's (axis, close_gripper) for the active goal's motion stage under the opted-in deviations.
+    axis indexes CEM's sampled [dx, dy, dz, grip] vector."""
+    axis = {}
+    if fix_x:
+        axis[0] = 0.0
+    if hold_xy and stage in (3, 4):
+        axis.update({0: 0.0, 1: 0.0})
+    if hold_open and stage == 3:
+        axis[3] = 0.0
+    return axis, (0 if hold_grasp and stage in (5, 6, 7) else None)
 
 
 def moves(archive):
@@ -84,14 +119,17 @@ def moves(archive):
     return out, [str(p) for p in z["source_paths"]], incomplete
 
 
-def goal_rows(move, final_stage):
-    """Raw rows of goals 1, 2, 3 in a complete move: the last usable row of stages 4, 6 and final_stage."""
-    return {g: int(move["rows"][move["stages"] == s].max()) for g, s in zip((1, 2, 3), GOAL_STAGES + (final_stage,))}
+def goal_rows(move, final_stage, stages=None):
+    """Raw rows of goals 1..n in a complete move: the last usable row of each goal stage (default: 4, 6, final)."""
+    stages = stages or GOAL_STAGES + (final_stage,)
+    return {g: int(move["rows"][move["stages"] == s].max()) for g, s in enumerate(stages, 1)}
 
 
-def time_schedule(train_moves, final_stage):
-    """Median step (from the move's first row) at which the expert reaches goals 1, 2 and 3, on the training split."""
-    reach = np.array([[(goal_rows(m, final_stage)[g] - m["rows"][0]) / FSTP for g in (1, 2, 3)] for m in train_moves])
+def time_schedule(train_moves, final_stage, stages=None):
+    """Median step (from the move's first row) at which the expert reaches goals 1..n, on the training split."""
+    n = len(stages or GOAL_STAGES + (final_stage,))
+    reach = np.array([[(goal_rows(m, final_stage, stages)[g] - m["rows"][0]) / FSTP for g in range(1, n + 1)]
+                      for m in train_moves])  # fmt: skip
     return [int(round(x)) for x in np.median(reach, axis=0)]
 
 
@@ -101,7 +139,7 @@ def main():
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--archive", required=True, help="held-out split (test)")
     p.add_argument("--goal_archive", required=True, help="training split: goal frames (train source) and schedule")
-    p.add_argument("--goals", choices=("paper3", "final_only"), default="paper3")
+    p.add_argument("--goals", choices=("paper3", "final_only", "stages"), default="paper3")
     p.add_argument("--switch", choices=("stage", "time"), default="time")
     p.add_argument("--schedule", choices=("transition", "global"), default="transition", help="time-switch medians")
     p.add_argument("--goal_source", choices=("train", "test"), default="train")
@@ -113,6 +151,12 @@ def main():
     p.add_argument("--maxnorm", type=float, default=0.05, help="repo cem per-axis box (paper: L1 ball 0.075)")
     p.add_argument("--fix_x", action="store_true", help="deviation, off by default: hold x (never varies in data)")
     p.add_argument("--hold_grasp", action="store_true", help="deviation, off by default: gripper closed during goal 2")
+    p.add_argument("--gripper_std", type=float, default=1.0, help="planner deviation: CEM initial gripper std (1.0)")
+    p.add_argument("--gripper_clip", type=float, default=0.75, help="planner deviation: CEM gripper clip (0.75)")
+    p.add_argument("--hold_open", action="store_true", help="task aid, off by default: gripper open (descend goal)")
+    p.add_argument("--hold_xy", action="store_true", help="task aid, off by default: x/y held (descend/grasp goals)")
+    p.add_argument("--eval_stages", default="", help="evaluate only rows in these motion stages, e.g. 3,4")
+    p.add_argument("--predictor_chunk", type=int, default=0, help="CEM samples per predictor call (memory only)")
     p.add_argument("--out", required=True)
     args = p.parse_args()
 
@@ -133,6 +177,10 @@ def main():
     predictor.eval()
     mpc = load_mpc_utils()
     step_fn = make_step_fn(predictor, tpf, norm, mpc.compute_new_pose)
+    if args.predictor_chunk:
+        from app.vjepa_hanoi.goal_planner import chunked  # goal_planner imports this module
+
+        step_fn = chunked(step_fn, args.predictor_chunk)
     transform = make_transforms(
         random_horizontal_flip=False,
         random_resize_aspect_ratio=(1.0, 1.0),
@@ -144,18 +192,23 @@ def main():
     )
     cem_kw = dict(rollout=args.rollout, samples=args.samples, topk=10, cem_steps=args.cem_steps,
                   momentum_mean=0.15, momentum_std=0.15, maxnorm=args.maxnorm)  # fmt: skip
-    if args.fix_x:
-        cem_kw["axis"] = {0: 0.0}
+    if (args.gripper_std, args.gripper_clip) != (1.0, 0.75):  # only when set, so default runs stay byte-identical
+        cem_kw |= {"gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip}
+    if args.hold_open and args.goals != "stages":
+        p.error("--hold_open acts on the descend goal: use --goals stages")
+    gstages = goal_stages(args.goals, args.final_stage)
+    n_goals = len(gstages)
+    eval_stages = {int(x) for x in args.eval_stages.split(",") if x}
 
     train_moves, train_paths, train_incomplete = moves(args.goal_archive)
     test_moves, test_paths, test_incomplete = moves(args.archive)
-    reach = time_schedule(train_moves, args.final_stage)  # steps at which the expert reaches goals 1, 2, 3 (global)
+    reach = time_schedule(train_moves, args.final_stage, gstages)  # steps at which the expert reaches each goal
     reach_by = {}  # transition -> its own medians (the arm server's rule)
     for t in {m["transition"] for m in train_moves}:
-        reach_by[t] = time_schedule([m for m in train_moves if m["transition"] == t], args.final_stage)
+        reach_by[t] = time_schedule([m for m in train_moves if m["transition"] == t], args.final_stage, gstages)
     exemplar = {}  # transition -> (file, goal rows) of its first complete training move
     for m in train_moves:
-        exemplar.setdefault(m["transition"], (m["file"], goal_rows(m, args.final_stage)))
+        exemplar.setdefault(m["transition"], (m["file"], goal_rows(m, args.final_stage, gstages)))
     files = {"train": [h5py.File(pth, "r") for pth in train_paths], "test": [h5py.File(pth, "r") for pth in test_paths]}
 
     # rows: one model step apart from the start of each held-out move; the expert's next sample must be usable and
@@ -165,16 +218,18 @@ def main():
         if m["transition"] not in exemplar:
             skipped_no_exemplar += 1
             continue
-        usable, g_test = set(m["rows"].tolist()), goal_rows(m, args.final_stage)
+        usable, g_test = set(m["rows"].tolist()), goal_rows(m, args.final_stage, gstages)
         r0 = int(m["rows"][0])
-        for k in range((g_test[3] - FSTP - r0) // FSTP + 1):
+        for k in range((g_test[n_goals] - FSTP - r0) // FSTP + 1):
             r = r0 + FSTP * k
             if r not in usable or r + FSTP not in usable:
                 continue
-            g_stage = next(g for g in (1, 2, 3) if g_test[g] >= r + FSTP)
+            if eval_stages and int(m["stages"][m["rows"] == r][0]) not in eval_stages:
+                continue
+            g_stage = next(g for g in range(1, n_goals + 1) if g_test[g] >= r + FSTP)
             rt = reach_by.get(m["transition"], reach) if args.schedule == "transition" else reach
-            g_time = 1 if k < rt[0] else (2 if k < rt[1] else 3)
-            g = 3 if args.goals == "final_only" else (g_stage if args.switch == "stage" else g_time)
+            g_time = next((g for g in range(1, n_goals) if k < rt[g - 1]), n_goals)
+            g = n_goals if args.goals == "final_only" else (g_stage if args.switch == "stage" else g_time)
             cands.append({"move": mi, "row": r, "k": k, "goal": g, "goal_stage_switch": g_stage})
     pick = np.linspace(0, len(cands) - 1, min(args.max_rows, len(cands))).astype(int)
 
@@ -191,7 +246,7 @@ def main():
         c = cands[i]
         m, r, g = test_moves[c["move"]], c["row"], c["goal"]
         h = files["test"][m["file"]]
-        g_test = goal_rows(m, args.final_stage)
+        g_test = goal_rows(m, args.final_stage, gstages)
         if args.goal_source == "train":
             gsrc, gfile, grow = "train", exemplar[m["transition"]][0], exemplar[m["transition"]][1][g]
         else:
@@ -206,12 +261,16 @@ def main():
         pose_t = torch.as_tensor(s7[None, :1], dtype=torch.float32, device=device)
         torch.manual_seed(n)
         with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype, enabled=dtype != torch.float32):
-            held = args.hold_grasp and args.goals == "paper3" and g == 2  # carrying toward goal 2
+            axis, close = aids(gstages[g - 1], args.fix_x, args.hold_grasp and args.goals != "final_only",
+                               args.hold_open, args.hold_xy)  # fmt: skip
             plan = mpc.cem(context_frame=z0, context_pose=pose_t, goal_frame=goal_cache[(gsrc, gfile, grow)],
-                           world_model=step_fn, close_gripper=0 if held else None, **cem_kw)[0]  # fmt: skip
+                           world_model=step_fn, close_gripper=close, **(cem_kw | {"axis": axis}))[0]  # fmt: skip
         rec["true"].append(true)
         rec["plan"].append(plan[0].float().cpu().numpy())
         rec["stage"].append(int(m["stages"][m["rows"] == r][0]))
+        rec["z"].append(float(pose[0, 2]))
+        rec["closedness"].append(float(s7[0, 6]))
+        rec["goal_stage"].append(gstages[g - 1])
         rec["goal"].append(g)
         rec["goal_stage_switch"].append(c["goal_stage_switch"])
         rec["goal_seconds"].append((g_test[g] - r) / 30.0)  # when the expert reaches the active goal (< 0: passed)
@@ -233,12 +292,14 @@ def main():
         "final_stage": args.final_stage,
         "fix_x": args.fix_x,
         "hold_grasp": args.hold_grasp,
-        "goal_frames": {"1": "end of stage 4 (grasp)", "2": "end of stage 6 (transit)",
-                        "3": f"end of stage {args.final_stage} ({STAGES[args.final_stage]})"},  # fmt: skip
+        "hold_open": args.hold_open,
+        "hold_xy": args.hold_xy,
+        "eval_stages": sorted(eval_stages) or "all",
+        "goal_frames": {str(g): f"end of stage {s} ({STAGES[s]})" for g, s in enumerate(gstages, 1)},
         "schedule": args.schedule,
         "time_schedule_reach_steps": reach,
         "time_schedule_reach_steps_by_transition": reach_by if args.schedule == "transition" else None,
-        "time_schedule_steps_per_goal": [reach[0], reach[1] - reach[0], reach[2] - reach[1]],
+        "time_schedule_steps_per_goal": np.diff([0] + reach).tolist(),
         "planner": cem_kw | {"source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1"},
         "checkpoint": args.checkpoint,
         "archive": args.archive,

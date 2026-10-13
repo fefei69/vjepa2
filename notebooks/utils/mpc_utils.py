@@ -43,6 +43,8 @@ def cem(
     axis={},
     objective=l1,
     close_gripper=None,
+    gripper_std=1.0,
+    gripper_clip=0.75,
 ):
     """
     :param context_frame: [B=1, T=1, HW, D]
@@ -75,7 +77,7 @@ def cem(
     std = torch.cat(
         [
             torch.ones((rollout, 3), device=context_frame.device) * maxnorm,
-            torch.ones((rollout, 1), device=context_frame.device),
+            torch.ones((rollout, 1), device=context_frame.device) * gripper_std,
         ],
         dim=-1,
     )
@@ -92,7 +94,7 @@ def cem(
             # -- sample new action
             action_samples = torch.randn(samples, mean.size(1), device=mean.device) * std[h] + mean[h]
             action_samples[:, :3] = torch.clip(action_samples[:, :3], min=-maxnorm, max=maxnorm)
-            action_samples[:, -1:] = torch.clip(action_samples[:, -1:], min=-0.75, max=0.75)
+            action_samples[:, -1:] = torch.clip(action_samples[:, -1:], min=-gripper_clip, max=gripper_clip)
             for ax in axis.keys():
                 action_samples[:, ax] = axis[ax]
             action_samples = torch.cat(
