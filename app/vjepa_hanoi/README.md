@@ -186,17 +186,24 @@ robot machine's GPU; nothing runs on the cluster.
    python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint <bundle>/weights.pt \
        --goal_bundle <bundle>/goals.npz --protocol paper --host 127.0.0.1 --port 8766
    ```
-   `curl -s http://127.0.0.1:8766/health` shows the checkpoint, protocol and safety box.
+   `curl -s http://127.0.0.1:8766/health` shows the checkpoint, protocol and safety box. On a 16 GB GPU (RTX 5080) one
+   batch of 800 CEM samples runs out of memory: add `--predictor_chunk 200` and run with
+   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` (same plans, 12.4 GiB peak, about 25 s per step).
 3. **Robot machine, terminal 2: the runner.** It runs in tower_hanoi's environment (numpy + tower_hanoi; no torch).
+   The real arm moves only with `--execute` plus `EXECUTE=1` (tower_hanoi's hardware rule); a dry run takes neither.
+   Keep `$PYTHONPATH`: it carries ROS's rclpy for the camera.
    ```bash
-   PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_<date> \
-       --tower-hanoi <tower_hanoi>
+   EXECUTE=1 PYTHONPATH=<tower_hanoi>:<vjepa2>:$PYTHONPATH python -m app.vjepa_hanoi.one_move_test --execute \
+       --out runs/one_move_<date> --tower-hanoi <tower_hanoi>
    ```
    - It runs the six cases × `faithful,hold` (12 runs), prompting you to set the board before each run and asking
-     afterwards how far the move got (0–5, or x = invalid, redo).
+     afterwards how far the move got (0–5, or x = invalid, redo). Only a placement (5) asks whether another ring
+     moved, and the gripper questions come only when the jaw reads closed.
    - `--resume` continues a session.
    - `--repeats N` repeats every case and variant.
-   - Each run's log has every step with its camera frame; one row per attempt goes to `results.jsonl`.
+   - Each run's log has every step with its camera frame; `<run>.steps.jsonl` gets one line per step as the run goes
+     (a killed process keeps it); one row per attempt goes to `results.jsonl`. The session file records the git HEAD,
+     the files that differ from it and a hash of that difference.
    - `app/vjepa_hanoi/serve.sbatch` runs the same server on a cluster GPU instead, reached over an ssh tunnel.
 
 Before the arm moves, the runner refuses to start unless the robot host's tower_hanoi config matches the recordings:
@@ -204,8 +211,12 @@ Before the arm moves, the runner refuses to start unless the robot host's tower_
 - `wm-transform.json` is square_roi 151/90/360 → 224;
 - the open jaw reading is at least 0.033.
 
-Each run starts from the recorded episode start pose (0.4140, 0.0157, 0.1911), reached by going straight up, then one
-leg above the rods.
+Each run starts, by default (`--start hover`, as tower_hanoi's Q-WM runner), above the source peg's calibrated grasp
+point at the start height (for peg A (498.4, -57.2, 191.1) mm), reached by going straight up, then one leg above the
+rods. The demos pass there at the end of their approach, 15.9 model steps in for source pegs A and C and 13.2 for B,
+jaw open and nearly still, so goal 1's step budget is shortened by that much: the schedule becomes the demos' own
+timing from the hover, [13, 16, 11] or [13, 24, 11]. `--start episode` starts at the demos' first pose
+(0.4140, 0.0157, 0.1911), 8 cm behind the rods, with the full schedule.
 
 Server-side safety:
 - every step is clamped to the workspace box of the training data (never more than 1 mm below its lowest tool height),
@@ -213,8 +224,27 @@ Server-side safety:
 - the orientation is always the recorded one;
 - a pose outside the box is refused.
 
-Ctrl-C stops a run with no further motion, then asks before lifting. On exit the arm lifts straight up before
-tower_hanoi parks it. The e-stop remains the real safety.
+Execution on the arm follows tower_hanoi's Q-WM runner (`tower_hanoi/docs/handover-hardware-test-pipeline.md`). It
+changes how the arm reaches the planned target, never the target, and the schedule still counts model steps:
+- each move's goal time is Q-WM's rule instead of the data's 0.267 s: distance / 36 mm/s within 0.5-1.0 s, and 1.0 s
+  for a jaw change, the 2 steps after one and a loaded step below the low floor (transit height - 25 mm, 166.1 mm);
+- the 3 mm / 2 deg readback re-reads the pose for up to 0.15 s before it fails (same tolerances);
+- the planner's frame is one received after the arm is still (<= 0.02 m/s on 3 readings 10 ms apart);
+- abort-only checks, which never steer: tower_hanoi's missed-grasp check after a close below the low floor, where a
+  ring or a rod can be between the pads (a missed grasp there ends the run; a close higher up, e.g. in mid-air at the
+  start pose, is only logged and the planner may reopen), and no sideways step over 3 mm with an end below the low
+  floor (Q-WM's guard without its recovery).
+- before a run moves anything, a camera frame must arrive. rclpy's own SIGINT handler is off, so a Ctrl-C (during a
+  run or at a prompt) no longer stops the ROS camera.
+
+Ctrl-C stops a run with no further motion, then asks before the retreat. The retreat (end of a run, an abort, the
+session end) opens the jaw first when the tool is below the low floor, so a ring stays on its rod, then rises straight
+up to the start height; a ring held higher stays held. If that opened a jaw that was not open, the runner released the
+ring, not the model: the run records `runner_released_jaw` and cannot count as a success. After a run without errors
+the arm moves at the start height to the start pose, 8 cm behind the rods, for the board reset. On exit tower_hanoi
+parks the arm, but if the retreat failed it parks only when the operator types PARK; otherwise the process waits, with
+the arm holding, until the operator has recovered it (the controller goes idle when the process exits). The e-stop
+remains the real safety.
 
 Task-specific planning aids (a symbolic route solver, per-stage subgoal images, holding x fixed, a step cap) are kept
 separately in `app/vjepa_hanoi_oracle/`. They use privileged information and are not part of this baseline.

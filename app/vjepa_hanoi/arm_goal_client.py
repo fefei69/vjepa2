@@ -4,14 +4,18 @@
 #                          --goal_archive <training split .npz> [--protocol paper]
 #      then tunnel it to the robot host: ssh -L 8766:<gpu node>:8766 <cluster>
 #   1. optional, capture a real goal photo: arrange the goal board, then
-#        PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --save-goal-image goal.npy
+#        EXECUTE=1 PYTHONPATH=<tower_hanoi>:<vjepa2>:$PYTHONPATH python -m app.vjepa_hanoi.arm_goal_client --execute \
+#            --save-goal-image goal.npy
 #   2. run a test from the current board:
-#        PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --start AAAA \
-#            --goal-board BAAA [--goal-image goal.npy] --log run_AAAA_BAAA.npz
+#        EXECUTE=1 PYTHONPATH=<tower_hanoi>:<vjepa2>:$PYTHONPATH python -m app.vjepa_hanoi.arm_goal_client --execute \
+#            --start AAAA --goal-board BAAA [--goal-image goal.npy] --log run_AAAA_BAAA.npz
+#   The real arm moves only with --execute plus EXECUTE=1 (a dry run takes neither). Keep $PYTHONPATH: it carries ROS's
+#   rclpy for the camera.
 #
 # The goal is set once (an uploaded photo, or a training frame of the goal board on the server). Every control step
-# sends the current 224 px frame + measured pose + gripper coordinate, executes the first planned action (one 0.267 s
-# step; the server only clamps it to the workspace and a speed limit), and repeats until the step budget is used:
+# sends the current 224 px frame + measured pose + gripper coordinate, executes the first planned action (one model
+# step of 0.267 s of recorded motion, moved as robot_io describes; the server only clamps it to the workspace and a
+# speed limit), and repeats until the step budget is used:
 # --steps, or by default 2 x the optimal number of game moves x --steps-per-move (the composition test's budget of
 # twice the optimal move count). There is no success detector and no subgoal or route logic; check the board at the
 # end (e.g. robot.check_board). Every step is logged to --log for analysis.
@@ -22,20 +26,34 @@
 # your own photos via --goal-images grasped.npy,near.npy,final.npy. The goals switch on the paper's fixed time
 # schedule: --schedule, by default the training split's median expert steps per goal as reported by the server.
 # The budget is the schedule total.
-#   PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.arm_goal_client --protocol paper --start AAAA \
-#       --goal-board BAAA --log run_paper_AAAA_BAAA.npz
+#   EXECUTE=1 PYTHONPATH=<tower_hanoi>:<vjepa2>:$PYTHONPATH python -m app.vjepa_hanoi.arm_goal_client --execute \
+#       --protocol paper --start AAAA --goal-board BAAA --log run_paper_AAAA_BAAA.npz
 
 import argparse
 import io
 import json
+import math
+import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from collections import deque
 
 import numpy as np
 
-from app.vjepa_hanoi.robot_io import START_POSE, STEP_S, Robot
+from app.vjepa_hanoi.robot_io import START_POSE, STEP_S, Robot, step_goal_time
+
+EXECUTE_HELP = "real arm only: required, together with the environment variable EXECUTE=1 (run by the operator)"
+
+
+def require_execute(p, args):
+    """The real arm moves only with --execute plus EXECUTE=1 (tower_hanoi's hardware rule); a dry run takes neither."""
+    if args.dry_run:
+        if args.execute:
+            p.error("--execute is for the real arm; drop it for a dry run")
+    elif not (args.execute and os.environ.get("EXECUTE") == "1"):
+        p.error("the real arm moves only with --execute and EXECUTE=1 in the environment; use --dry-run to rehearse")
 
 
 def board_distance(start, goal):
@@ -107,7 +125,7 @@ def paper_goal(args, p):
 
 
 LOG_KEYS = ("pose", "jaw", "action", "executed_delta", "goal_energy", "plan_energy", "scaled", "goal_index",
-            "gripper_held", "gripper_intent", "plan_seconds", "image")
+            "gripper_held", "gripper_intent", "plan_seconds", "move_s", "move_class", "grasp_reading", "image")
 
 
 def new_log():
@@ -121,14 +139,20 @@ def save_log(path, log, **meta):
     np.savez_compressed(path, **arrays)
 
 
-def run_steps(robot, server, goal, budget, switch, log, out=print, seed=0):
+def run_steps(robot, server, goal, budget, switch, log, out=print, seed=0, intent=None, step_log=None):
     """The control loop: observe, plan toward the active goal, execute the first action; `log` fills as it goes.
 
     `switch` lists the steps after which the paper protocol moves to the next goal (empty: the single goal). A
     hardware or planner error propagates; the steps already taken stay in `log`. Step k plans with CEM seed
-    seed * 1000 + k (the offline check also seeds every row differently).
+    seed * 1000 + k (the offline check also seeds every row differently). `intent` is the gripper state the caller
+    left the arm in ("open" after parking), so only real changes count as jaw changes.
+
+    Execution follows robot_io: the low-lateral check before any of the step's motion, the gripper only on a change of
+    intent (a close is checked for a missed grasp), then the move to the planned target with step_goal_time's goal
+    time and the readback settle window. `step_log` (a path) gets one JSON line per planned step as it happens, so a
+    killed process still leaves the run's record.
     """
-    intent = None
+    last_gripper = None  # the step of the last gripper command
     for step in range(1, budget + 1):
         gi = sum(step > s for s in switch)  # paper protocol: goals switch at fixed steps; plain: the one goal
         if gi and step - 1 == switch[gi - 1]:
@@ -136,21 +160,40 @@ def run_steps(robot, server, goal, budget, switch, log, out=print, seed=0):
         image, pose, jaw = robot.observe()
         reply = post(server, "/plan", image=image.astype(np.uint8), pose=np.asarray(pose, float), jaw=float(jaw),
                      goal_index=gi if switch else -1, seed=seed * 1000 + step)  # fmt: skip
+        target, new_intent = reply["target_pose"], reply["gripper_intent"]
+        jaw_change = new_intent != intent
+        loaded_low = new_intent == "close" and min(float(pose[2]), float(target[2])) < robot.low_floor
+        move_s, move_class = step_goal_time(
+            math.dist([float(v) for v in pose[:3]], [float(v) for v in target[:3]]), jaw_change,
+            None if last_gripper is None else step - last_gripper - 1, loaded_low,
+        )  # fmt: skip
         for k, v in (("pose", pose), ("jaw", jaw), ("action", reply["action"]), ("scaled", reply["safety_scaled"]),
                      ("executed_delta", reply["executed_delta"]), ("goal_energy", reply["goal_energy"]),
                      ("plan_energy", reply["plan_energy"]), ("goal_index", reply["goal_index"]),
-                     ("gripper_held", reply.get("gripper_held", False)), ("gripper_intent", reply["gripper_intent"]),
-                     ("plan_seconds", reply["seconds"]), ("image", image.astype(np.uint8))):  # fmt: skip
+                     ("gripper_held", reply.get("gripper_held", False)), ("gripper_intent", new_intent),
+                     ("plan_seconds", reply["seconds"]), ("move_s", move_s), ("move_class", move_class),
+                     ("grasp_reading", float("nan")), ("image", image.astype(np.uint8))):  # fmt: skip
             log[k].append(v)
-        if reply["gripper_intent"] != intent:
-            robot.gripper(reply["gripper_intent"])
-            intent = reply["gripper_intent"]
-        robot.move(reply["target_pose"], STEP_S)
+        if step_log:
+            row = {"step": step, "time": time.time(), "pose": [float(v) for v in pose], "jaw": float(jaw),
+                   "target_pose": target, "move_s": move_s, "move_class": move_class, "seed": seed * 1000 + step}
+            keep = ("action", "executed_delta", "safety_scaled", "goal_index", "gripper_intent", "gripper_held",
+                    "goal_energy", "plan_energy", "seconds")
+            row.update({k: reply.get(k) for k in keep})
+            with open(step_log, "a") as f:
+                f.write(json.dumps(row) + "\n")
+        robot.check_step(pose, target)  # abort-only, before any of this step's motion
+        if jaw_change:
+            reading = robot.gripper(new_intent)  # a close below the low floor is checked for a missed grasp
+            intent, last_gripper = new_intent, step
+            if reading is not None:
+                log["grasp_reading"][-1] = float(reading)
+        robot.move(target, move_s, settle=True)
         if step % 10 == 0 or step == 1:
             d = 1e3 * np.asarray(reply["executed_delta"])
             out(f"step {step}/{budget}: delta [{d[0]:+.1f} {d[1]:+.1f} {d[2]:+.1f}] mm, gripper {intent}, goal "
-                f"{reply['goal_index'] + 1}, energy {reply['goal_energy']:.4f}, plan {reply['seconds']:.1f} s"
-                f"{' (speed-limited)' if reply['safety_scaled'] else ''}")
+                f"{reply['goal_index'] + 1}, energy {reply['goal_energy']:.4f}, plan {reply['seconds']:.1f} s, move "
+                f"{move_s:.2f} s ({move_class}){' (speed-limited)' if reply['safety_scaled'] else ''}")
     return log
 
 
@@ -177,10 +220,10 @@ def main():
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--replay", default=None, help="dry run: HDF5 recording replayed as the camera")
     p.add_argument("--replay-episode", type=int, default=0)
+    p.add_argument("--execute", action="store_true", help=EXECUTE_HELP)
     args = p.parse_args()
+    require_execute(p, args)
     if args.tower_hanoi is None:
-        import os
-
         args.tower_hanoi = os.environ.get("TOWER_HANOI", os.path.expanduser("~/ws/tower_hanoi"))
     if args.dry_run and not args.replay:
         p.error("--dry-run needs --replay <recording.h5>")
@@ -210,19 +253,22 @@ def main():
                 if not (args.start and args.goal_board):
                     p.error("the default budget needs --start and --goal-board (or pass --steps)")
                 budget = 2 * board_distance(args.start, args.goal_board) * args.steps_per_move
-        print(f"goal: {goal['goal']}; budget {budget} steps ({budget * STEP_S:.0f} s)", flush=True)
+        print(f"goal: {goal['goal']}; budget {budget} model steps ({budget * STEP_S:.0f} s of recorded time)",
+              flush=True)  # fmt: skip
         if not args.no_park:  # the server refuses poses outside the trained workspace, so start where training did
             robot.gripper("open")
             robot.park(START_POSE)
         log = new_log()
-        run_steps(robot, args.server, goal, budget, switch, log)
+        run_steps(robot, args.server, goal, budget, switch, log, intent=None if args.no_park else "open")
         print("budget used; check the board (e.g. robot.check_board) and record success/failure.", flush=True)
         return 0
     finally:
-        if "log" in locals() and log["pose"]:
-            save_log(args.log, log)
-            print(f"step log -> {args.log}")
-        robot.close()
+        try:
+            if "log" in locals() and log["pose"]:
+                save_log(args.log, log)
+                print(f"step log -> {args.log}")
+        finally:
+            robot.close()  # whatever the log save does
 
 
 if __name__ == "__main__":

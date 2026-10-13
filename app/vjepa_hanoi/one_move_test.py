@@ -4,8 +4,11 @@
 #   server (robot machine's GPU; the bundle comes from app/vjepa_hanoi/export_robot_bundle.py):
 #       python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint <bundle>/weights.pt \
 #           --goal_bundle <bundle>/goals.npz --protocol paper --host 127.0.0.1 --port 8766
-#   runner (tower_hanoi's environment, another terminal):
-#       PYTHONPATH=<tower_hanoi>:<vjepa2> python -m app.vjepa_hanoi.one_move_test --out runs/one_move_1
+#       (16 GB GPU: add --predictor_chunk 200 and run with PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True)
+#   runner (tower_hanoi's environment, another terminal; keep $PYTHONPATH, it carries ROS's rclpy for the camera):
+#       EXECUTE=1 PYTHONPATH=<tower_hanoi>:<vjepa2>:$PYTHONPATH python -m app.vjepa_hanoi.one_move_test --execute \
+#           --out runs/one_move_1 --tower-hanoi <tower_hanoi>
+#   The real arm moves only with --execute plus EXECUTE=1 (tower_hanoi's hardware rule); a dry run takes neither.
 #   (or serve on a cluster GPU with app/vjepa_hanoi/serve.sbatch and an ssh tunnel to port 8766)
 #   rehearsal:  ... one_move_test --dry-run --replay-archive <data/expert6_first_move/test.npz> --yes --out <dir>
 #               (needs the recordings at the archive's paths)
@@ -20,17 +23,32 @@
 #   1. the operator sets the board, ring 1 on top of a full stack on the start peg, and checks the gripper is empty;
 #   2. the server sets the case's three goal images (frames of a training demo of the same move), the variant's options
 #      and the case's schedule (the median timing of that move's training demos), all checked before the arm moves;
-#   3. the gripper opens (its reading is checked against the recorded open width) and the arm parks at the recorded
-#      episode start pose: straight up first, then one leg above the rods;
-#   4. the paper schedule runs; the arm then lifts straight up to the start height (a held ring stays in the gripper);
-#   5. the operator records how far the move got, or marks the run invalid (set-up, network or server problem) so
-#      --resume redoes it. Logs (every step with its camera frame) go to <out>/<run>[_aN].npz, never overwritten, and
-#      one row per attempt to <out>/results.jsonl.
-# Ctrl-C during a run stops it with no further motion; the operator is then asked before the arm lifts. Ctrl-C at a
-# prompt is ignored (answer q where offered). On exit the arm lifts straight up, then tower_hanoi parks it.
+#   3. a camera frame must arrive; then the gripper opens (its reading is checked against the recorded open width) and
+#      the arm parks at the start: straight up first, then one leg above the rods. --start hover (default, as
+#      tower_hanoi's Q-WM runner) starts above the source peg's grasp point at the start height, where the demos pass
+#      at the end of their approach; goal 1's step budget is then shortened by the demos' approach steps
+#      (HOVER_APPROACH_STEPS), so [29, 16, 11] becomes [13, 16, 11]. --start episode starts at the demos' first pose,
+#      8 cm behind the rods in line with peg B, with the full schedule;
+#   4. the paper schedule runs, each step executed as robot_io describes (Q-WM's move timing, settle window, still-arm
+#      frames, and the abort-only missed-grasp and low-lateral checks); then the retreat: below the low floor the jaw
+#      opens first (a ring stays on its rod), then straight up to the start height (a ring held higher stays held);
+#   5. the operator records how far the move got (and, for a placement, whether another ring moved), or marks the run
+#      invalid (set-up, network or server problem) so --resume redoes it; the gripper questions come only when the jaw
+#      reads closed. Logs (every step with its camera frame) go to <out>/<run>[_aN].npz, never overwritten, one
+#      JSON line per step to <out>/<run>[_aN].steps.jsonl as the run goes, and one row per attempt to results.jsonl;
+#      If the retreat opened a jaw that was not open, the runner (not the model) released whatever it held: that is
+#      recorded (runner_released_jaw) and the run cannot count as a success. A run that fails before any motion is
+#      recorded as invalid without asking;
+#   6. after a run without errors the arm moves at the start height to the start pose, 8 cm behind the rods, so the
+#      board is reset under a clear arm (after an error, the next run's park does it once the operator is ready).
+# Ctrl-C during a run stops it with no further motion; the operator is then asked before the retreat. Ctrl-C at a
+# prompt is ignored (answer q where offered); it no longer stops the ROS camera (robot_io turns off rclpy's SIGINT
+# handler). On exit the arm retreats, then tower_hanoi parks it; if the retreat fails, it parks only when the operator
+# types PARK.
 
 import argparse
 import datetime
+import hashlib
 import itertools
 import json
 import os
@@ -41,8 +59,8 @@ import zlib
 
 import numpy as np
 
-from app.vjepa_hanoi.arm_goal_client import new_log, post, run_steps, save_log
-from app.vjepa_hanoi.robot_io import RECORDED_OPEN_COMMAND, START_POSE, STEP_S, Robot
+from app.vjepa_hanoi.arm_goal_client import EXECUTE_HELP, new_log, post, require_execute, run_steps, save_log
+from app.vjepa_hanoi.robot_io import RECORDED_OPEN_COMMAND, SPEED_CAP_M_S, START_POSE, STEP_SLOW_S, Robot
 
 BOARDS = ["".join(b) for b in itertools.product("ABC", repeat=4)]  # board_indices order, ring 1 first
 CASES = ["AAAA>BAAA", "AAAA>CAAA", "BBBB>ABBB", "BBBB>CBBB", "CCCC>ACCC", "CCCC>BCCC"]
@@ -57,6 +75,10 @@ PROGRESS = {  # furthest point the move reached, judged by the operator
     "x": "INVALID run (set-up, network or server problem): redo it",
 }
 OPEN_JAW_MIN = RECORDED_OPEN_COMMAND - 0.001  # an open jaw below this reads as > 30% closed to the model
+# Model steps from a one-move demo's first row to the end of its approach (above the source peg's grasp point), median
+# over the 8 training demos of each case: 15.9 for source pegs A and C, 13.2 for B (range +-0.1). With --start hover
+# goal 1's budget drops by this, which is the demos' own timing from the hover: [13, 16, 11] or [13, 24, 11].
+HOVER_APPROACH_STEPS = {"A": 16, "B": 13, "C": 16}
 
 
 def ask(prompt, choices=None, default=None, auto=None):
@@ -85,12 +107,19 @@ def ask(prompt, choices=None, default=None, auto=None):
         print(f"  choose one of {sorted(choices)}")
 
 
-def git_commit():
+def git_state():
+    """HEAD, the files that differ from it, and a hash of that difference: the code that actually ran."""
     here = os.path.dirname(os.path.abspath(__file__))
+
+    def git(*cmd):
+        return subprocess.check_output(["git", "-C", here, *cmd], text=True)
+
     try:
-        return subprocess.check_output(["git", "-C", here, "rev-parse", "HEAD"], text=True).strip()
+        return {"vjepa2_commit": git("rev-parse", "HEAD").strip(),
+                "vjepa2_changed_files": git("status", "--porcelain", "--untracked-files=no").splitlines(),
+                "vjepa2_diff_sha256": hashlib.sha256(git("diff", "HEAD").encode()).hexdigest()}  # fmt: skip
     except Exception:
-        return "unknown"
+        return {"vjepa2_commit": "unknown"}
 
 
 def main():
@@ -109,7 +138,12 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="tower_hanoi DryRunArm + a replayed test move as camera")
     p.add_argument("--replay-archive", help="dry run: data/expert6_first_move/test.npz (each case replays its move)")
     p.add_argument("--yes", action="store_true", help="dry run only: no operator prompts")
+    p.add_argument("--start", choices=("hover", "episode"), default="hover",
+                   help="hover: above the source peg (Q-WM's start; goal 1 budget shortened); episode: the demos' "
+                        "first pose 8 cm behind the rods")  # fmt: skip
+    p.add_argument("--execute", action="store_true", help=EXECUTE_HELP)
     args = p.parse_args()
+    require_execute(p, args)
     cases, variants = args.cases.split(","), args.variants.split(",")
     for c in cases:
         if c not in CASES:
@@ -154,6 +188,9 @@ def main():
         health = json.loads(resp.read())
     if health.get("protocol") != "paper":
         p.error(f"the server runs protocol {health.get('protocol')!r}; start it with --protocol paper")
+    if float(health.get("max_step_m", 0.0)) > SPEED_CAP_M_S * STEP_SLOW_S + 1e-9:  # the move-time rule's assumption
+        p.error(f"the server allows {health['max_step_m'] * 1e3:.1f} mm steps; the move-time rule keeps steps under "
+                f"36 mm/s only up to {SPEED_CAP_M_S * STEP_SLOW_S * 1e3:.0f} mm: use the default --max_speed 0.10")
     print(f"server: {health.get('checkpoint')} | protocol {health['protocol']} | planner {health['planner']}")
 
     runs = []
@@ -168,22 +205,31 @@ def main():
     robot = Robot(args)
     started = datetime.datetime.now().isoformat(timespec="seconds")
     with open(os.path.join(args.out, f"session_{started.replace(':', '')}.json"), "w") as f:
-        json.dump({"started": started, "args": vars(args), "server": health, "vjepa2_commit": git_commit(),
-                   "start_pose": START_POSE, "robot_config": robot.config}, f, indent=1)  # fmt: skip
+        json.dump({"started": started, "args": vars(args), "server": health, **git_state(),
+                   "start": args.start, "episode_start_pose": START_POSE, "hover_approach_steps": HOVER_APPROACH_STEPS,
+                   "robot_config": robot.config}, f, indent=1)  # fmt: skip
 
     def q(prompt, choices=None, default=None, dry=None):
         """Ask the operator; with --yes (dry run only) answer `dry` instead."""
         return ask(prompt, choices, default, dry if args.yes else None)
 
-    def offer_lift():
-        if q("Lift the arm straight up to the start height now? [y/n]: ", {"y", "n"}, dry="y") == "y":
+    def jaw_closed():
+        """The gripper questions are asked only when the jaw does not read open (or cannot be read)."""
+        try:
+            return robot.jaw() < OPEN_JAW_MIN
+        except Exception:
+            return True
+
+    def offer_retreat():
+        """(error or None, the jaw reading before the retreat opened it or None)."""
+        if q("Retreat now: below the low floor open the jaw first (a ring stays on its rod), then straight up to the "
+             "start height? [y/n]: ", {"y", "n"}, dry="y") == "y":  # fmt: skip
             try:
-                robot.lift(START_POSE[2])
-                return None
-            except Exception as e:
-                print(f"lift failed: {type(e).__name__}: {e}")
-                return f"{type(e).__name__}: {e}"
-        return "operator declined the lift"
+                return None, robot.retreat()
+            except BaseException as e:  # Ctrl-C included: keep this run's log and result
+                print(f"retreat failed: {type(e).__name__}: {e}")
+                return f"{type(e).__name__}: {e}", None
+        return "operator declined the retreat", None
 
     try:
         for n, (case, variant, rep) in enumerate(runs, 1):
@@ -197,76 +243,115 @@ def main():
                 break
             if a == "s":
                 continue
-            attempt = 0
-            while os.path.exists(os.path.join(args.out, f"{run}{f'_a{attempt}' if attempt else ''}.npz")):
+            attempt = 0  # a killed attempt leaves only its .steps.jsonl: it keeps that file; the redo gets a new seed
+            while any(os.path.exists(os.path.join(args.out, f"{run}{f'_a{attempt}' if attempt else ''}{ext}"))
+                      for ext in (".npz", ".steps.jsonl")):  # fmt: skip
                 attempt += 1
             log_name = f"{run}{f'_a{attempt}' if attempt else ''}.npz"
-            meta = {"run": run, "log_file": log_name, "case": case, "variant": variant, "repeat": rep,
-                    "options": VARIANTS[variant], "dry_run": args.dry_run, "steps": 0, "error": None}  # fmt: skip
-            log, phase = new_log(), "set-up"
+            step_log = log_name.replace(".npz", ".steps.jsonl")
+            meta = {"run": run, "log_file": log_name, "step_log_file": step_log, "case": case, "variant": variant,
+                    "repeat": rep, "options": VARIANTS[variant], "dry_run": args.dry_run, "steps": 0,
+                    "error": None}  # fmt: skip
+            log, phase, retreated = new_log(), "set-up", False
             try:
                 # everything that can fail without moving the arm comes first
                 goal = post(args.server, "/goal", transition=case, **VARIANTS[variant])
                 if goal.get("options") != VARIANTS[variant]:
                     raise RuntimeError(f"server options {goal.get('options')} != requested {VARIANTS[variant]}")
                 schedule = fixed_schedule or goal.get("schedule")
+                if args.start == "hover" and not fixed_schedule and schedule:  # the demos' timing from the hover
+                    schedule = [int(schedule[0]) - HOVER_APPROACH_STEPS[start[0]]] + [int(s) for s in schedule[1:]]
                 if not schedule or len(schedule) != goal["n_goals"] or min(schedule) < 1:
                     raise RuntimeError(f"bad schedule {schedule} for {goal['n_goals']} goals")
                 switch, budget = [int(x) for x in np.cumsum(schedule)[:-1]], int(sum(schedule))
-                meta.update({"schedule": schedule, "goal": goal["goal"], "planner": goal["planner"],
+                start_pose = robot.hover_pose(start[0]) if args.start == "hover" else START_POSE
+                meta.update({"schedule": schedule, "server_schedule": goal.get("schedule"), "start": args.start,
+                             "start_pose": start_pose, "goal": goal["goal"], "planner": goal["planner"],
                              "box": goal.get("box")})  # fmt: skip
-                print(f"goal: {goal['goal']}\nschedule {schedule} steps ({budget * STEP_S:.0f} s of motion)")
+                where = f"above peg {start[0]}" if args.start == "hover" else "at the demos' first pose"
+                print(f"goal: {goal['goal']}\nstart {where} {np.round(np.asarray(start_pose[:3]) * 1e3, 1).tolist()} "
+                      f"mm; schedule {schedule} = {budget} model steps")  # fmt: skip
+                robot.check_camera()  # no frames (camera down): fails here, before any motion
                 phase = "parking"
-                if args.dry_run:
-                    robot.replay_from(*replay[case])
+                if args.dry_run:  # with --start hover, replay from the demo's approach end (8 raw rows per step)
+                    path, row = replay[case]
+                    robot.replay_from(path, row + (8 * HOVER_APPROACH_STEPS[start[0]] if args.start == "hover" else 0))
                 robot.gripper("open")
                 jaw = robot.jaw()
                 meta["open_jaw"] = jaw
                 if jaw < OPEN_JAW_MIN:
                     raise RuntimeError(f"open jaw reads {jaw:.4f} < {OPEN_JAW_MIN:.4f}: the model would see a "
                                        f"half-closed gripper (recorded open width {RECORDED_OPEN_COMMAND})")  # fmt: skip
-                robot.park(START_POSE)
+                robot.park(start_pose)
                 phase = "running"
                 seed = zlib.crc32(f"{run}_{attempt}".encode()) % 100000
                 meta["seed"] = seed
                 t0 = datetime.datetime.now()
-                run_steps(robot, args.server, goal, budget, switch, log, out=lambda m: print(m, flush=True), seed=seed)
+                run_steps(robot, args.server, goal, budget, switch, log, out=lambda m: print(m, flush=True), seed=seed,
+                          intent="open", step_log=os.path.join(args.out, step_log))  # fmt: skip
                 meta["seconds"] = (datetime.datetime.now() - t0).total_seconds()
-                phase = "lifting"
-                robot.lift(START_POSE[2])
-                phase = "done"
+                phase = "retreating"
+                opened_from = robot.retreat()
+                retreated, phase = True, "done"
             except KeyboardInterrupt:
                 meta["error"] = f"stopped by the operator (Ctrl-C) while {phase}"
-            except Exception as e:  # arm readback, planner or network errors: stop this run, keep the log
+            except Exception as e:  # arm readback, grasp, step-check, planner or network errors: stop, keep the log
                 meta["error"] = f"{type(e).__name__} while {phase}: {e}"
             meta["steps"] = len(log["pose"])
+            meta["final_gripper_intent"] = log["gripper_intent"][-1] if log["gripper_intent"] else None
             if meta["error"]:
                 print(f"\nrun stopped after {meta['steps']} steps: {meta['error']}")
-                if phase in ("parking", "running", "lifting"):
-                    meta["lift_error"] = offer_lift()
+                opened_from = None
+                if phase in ("parking", "running", "retreating"):
+                    meta["retreat_error"], opened_from = offer_retreat()
+                    retreated = meta["retreat_error"] is None
+            # the runner, not the model, released a ring if the retreat opened a jaw that was not open
+            runner_released = opened_from is not None and opened_from < OPEN_JAW_MIN
+            meta.update({"retreat_opened_jaw_from": opened_from, "runner_released_jaw": runner_released})
             save_log(os.path.join(args.out, log_name), log, **meta)
-            progress = q("How far did it get?\n" + "\n".join(f"  {k}: {v}" for k, v in PROGRESS.items()) + "\n> ",
-                         set(PROGRESS), dry="0")  # fmt: skip
+            if meta["error"] and phase == "set-up":  # nothing moved: an invalid run that --resume redoes
+                print("nothing moved: recorded as invalid (x); --resume redoes it")
+                progress = "x"
+            else:
+                if runner_released:
+                    print(f"NOTE: the retreat opened the jaw (reading {opened_from:.4f}) below the low floor: a ring "
+                          f"now on a rod was released by the runner, not the model, and cannot count as success")
+                progress = q("How far did it get?\n" + "\n".join(f"  {k}: {v}" for k, v in PROGRESS.items())
+                             + "\n> ", set(PROGRESS), dry="0")  # fmt: skip
             valid = progress != "x"
-            disturbed = q("Did it move or knock any other ring? [y/n]: ", {"y", "n"}, dry="n") if valid else None
-            note = q("Note (optional): ", None, default="", dry="dry run")
+            # only a placement can be a success, and success needs nothing else disturbed: ask only then
+            disturbed = None
+            if progress == "5":
+                disturbed = q("Did it move or knock any other ring? [y/n]: ", {"y", "n"}, dry="n")
             meta.update({"valid": valid, "progress": int(progress) if valid else None,
-                         "progress_text": PROGRESS[progress], "other_rings_disturbed": disturbed == "y" if valid else None,
-                         "success": valid and progress == "5" and disturbed == "n" and not args.dry_run,
-                         "note": note, "time": datetime.datetime.now().isoformat(timespec="seconds")})  # fmt: skip
+                         "progress_text": PROGRESS[progress],
+                         "other_rings_disturbed": None if disturbed is None else disturbed == "y",
+                         "success": (valid and progress == "5" and disturbed == "n" and not runner_released
+                                     and not args.dry_run),
+                         "time": datetime.datetime.now().isoformat(timespec="seconds")})  # fmt: skip
             with open(results_path, "a") as f:
                 f.write(json.dumps(meta) + "\n")
-            if q("Is the gripper holding a ring? Open it now? [y/n]: ", {"y", "n"}, dry="n") == "y":
+            if jaw_closed() and q("The jaw reads closed. Open it now (a held ring drops)? [y/n]: ", {"y", "n"},
+                                  dry="n") == "y":  # fmt: skip
                 robot.gripper("open")
-            if meta["error"] and q("Continue with the next run? [y/n]: ", {"y", "n"}, dry="y") != "y":
+            if retreated and not meta["error"]:  # one leg at the start height to the start pose, 8 cm behind the rods
+                # for the board reset (after an error the next run's park does the same once the operator is ready)
+                print("clearing the rods for the board reset: one leg at the start height to the start pose")
+                try:
+                    robot.park(START_POSE)
+                except Exception as e:  # the arm's state is uncertain: end the session (the exit retreat follows)
+                    print(f"move to the start pose failed: {type(e).__name__}: {e}")
+                    break
+            more = n < len(runs)  # no question after the last run
+            if meta["error"] and more and q("Continue with the next run? [y/n]: ", {"y", "n"}, dry="y") != "y":
                 break
     finally:
         try:
-            if not args.yes and q("Session over. Is a ring still in the gripper? Open it before parking? [y/n]: ",
-                                  {"y", "n"}) == "y":  # fmt: skip
+            if not args.yes and jaw_closed() and q("Session over and the jaw reads closed. Open it before parking? "
+                                                   "[y/n]: ", {"y", "n"}) == "y":  # fmt: skip
                 robot.gripper("open")
         finally:
-            robot.close()  # lifts straight up, then tower_hanoi's joint-space park
+            robot.close(ask=ask)  # the retreat, then tower_hanoi's joint-space park (on PARK only, if it failed)
     rows = [json.loads(x) for x in open(results_path)] if os.path.exists(results_path) else []
     print(f"\nresults ({results_path}, valid runs only):")
     for v in variants:
