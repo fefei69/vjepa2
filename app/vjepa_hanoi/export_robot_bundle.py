@@ -11,7 +11,9 @@
 #   goals.npz     per board transition of the goal archive: the three paper-protocol goal frames (224 px, from the
 #                 first complete training demo of that move, as goal_planner picks them), that move's schedule, the
 #                 global schedule, and the training data's workspace box; for --subgoals stages also the ends of
-#                 stages 3-7 and the final stage of the same demo (stage_frames) and their schedule (stage_schedules)
+#                 stages 3-7 and the final stage of the same demo (stage_frames) and their schedule (stage_schedules);
+#                 the same schedules counted from each demo's hover (hover_schedules, stage_hover_schedules) for runs
+#                 that start there; and step_rows, the model step in raw rows (the config's data.fps: 8 at fps 4)
 #   config.yaml   the training config (the server reads the model shape from it)
 #   MANIFEST.json sources, sha256 of every file, and the command to start the server
 # --goals_only rewrites goals.npz (and the manifest) of an existing bundle and leaves weights.pt as it is.
@@ -28,7 +30,9 @@ import shutil
 import h5py
 import numpy as np
 import torch
+import yaml
 
+from app.vjepa_hanoi.hanoi import step_rows
 from app.vjepa_hanoi.paper_protocol_eval import goal_rows, goal_stages, moves, time_schedule
 
 
@@ -50,6 +54,12 @@ def main():
     p.add_argument("--goals_only", action="store_true", help="keep the bundle's weights.pt; rewrite goals.npz")
     args = p.parse_args()
     os.makedirs(args.out, exist_ok=True)
+    with open(args.fname) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+    if os.path.abspath(cfg["folder"]) != os.path.dirname(os.path.abspath(args.checkpoint)):
+        # the yaml decides the model step (data.fps) of the bundle, so it must be the checkpoint's own training config
+        raise ValueError(f"{args.fname} trains into {cfg['folder']}, not the folder of {args.checkpoint}")
+    fstp = step_rows(cfg["data"].get("fps", 4))  # raw rows per model step
 
     if args.goals_only:
         with open(os.path.join(args.out, "MANIFEST.json")) as f:
@@ -67,6 +77,7 @@ def main():
 
     train, paths, _ = moves(args.goal_archive)
     transitions, frames, sources, schedules = [], [], [], []
+    hover_schedules, stage_hover_schedules = [], []
     sst = goal_stages("stages", args.final_stage)
     stage_frames, stage_sources, stage_schedules = [], [], []
     for m in train:  # the first complete training demo of each transition, as goal_planner.set_goal picks it
@@ -75,7 +86,9 @@ def main():
         g = goal_rows(m, args.final_stage)
         with h5py.File(paths[m["file"]], "r") as h:
             frames.append(np.stack([h["pixels"][g[k]] for k in (1, 2, 3)]))
-        reach = time_schedule([x for x in train if x["transition"] == m["transition"]], args.final_stage)
+        same = [x for x in train if x["transition"] == m["transition"]]
+        reach = time_schedule(same, args.final_stage, fstp=fstp)
+        hover_schedules.append(np.diff([0] + time_schedule(same, args.final_stage, fstp=fstp, start="hover")).tolist())
         transitions.append(m["transition"])
         sources.append([[m["file"], g[k]] for k in (1, 2, 3)])
         schedules.append([reach[0], reach[1] - reach[0], reach[2] - reach[1]])
@@ -83,9 +96,10 @@ def main():
         with h5py.File(paths[m["file"]], "r") as h:
             stage_frames.append(np.stack([h["pixels"][gs[k]] for k in range(1, len(sst) + 1)]))
         stage_sources.append([[m["file"], gs[k]] for k in range(1, len(sst) + 1)])
-        reach_s = time_schedule([x for x in train if x["transition"] == m["transition"]], args.final_stage, sst)
+        reach_s = time_schedule(same, args.final_stage, sst, fstp)
         stage_schedules.append(np.diff([0] + reach_s).tolist())
-    reach = time_schedule(train, args.final_stage)
+        stage_hover_schedules.append(np.diff([0] + time_schedule(same, args.final_stage, sst, fstp, "hover")).tolist())
+    reach = time_schedule(train, args.final_stage, fstp=fstp)
     z = np.load(args.goal_archive)
     xyz = z["measured_xyz"]
     np.savez_compressed(
@@ -103,6 +117,9 @@ def main():
         stage_frames=np.stack(stage_frames).astype(np.uint8),
         stage_frame_sources=np.array(stage_sources, np.int64),
         stage_schedules=np.array(stage_schedules, np.int64),
+        hover_schedules=np.array(hover_schedules, np.int64),
+        stage_hover_schedules=np.array(stage_hover_schedules, np.int64),
+        step_rows=np.array(fstp),
         goal_archive=np.array(os.path.abspath(args.goal_archive)),
     )
     shutil.copyfile(args.fname, os.path.join(args.out, "config.yaml"))
@@ -112,6 +129,8 @@ def main():
                    "config": os.path.abspath(args.fname), "goal_archive": os.path.abspath(args.goal_archive),
                    "final_stage": args.final_stage, "transitions": dict(zip(transitions, schedules)),
                    "stage_goals": {"stages": list(sst), "schedules": dict(zip(transitions, stage_schedules))},
+                   "step_rows": fstp, "hover_schedules": dict(zip(transitions, hover_schedules)),
+                   "stage_hover_schedules": dict(zip(transitions, stage_hover_schedules)),
                    "sha256": files,
                    "serve": "python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint "
                             "<bundle>/weights.pt --goal_bundle <bundle>/goals.npz --protocol paper "

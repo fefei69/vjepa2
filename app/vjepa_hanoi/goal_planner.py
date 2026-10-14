@@ -57,8 +57,13 @@
 # Execution safety is applied AFTER planning and reported in every reply. It never changes what the planner chose.
 # The target is clamped to the workspace box of the goal archive's training data (x, y and the top padded by 5 mm; never
 # more than 1 mm below the lowest recorded tool height), then a step faster than --max_speed is scaled down, so no
-# executed step is longer than max_speed x 0.267 s. The orientation is always the recorded one (RECORDED_ROTVEC). A
-# measured pose more than 10 mm outside the box or 3 deg off that orientation is refused (HTTP 400), not moved from.
+# executed step is longer than max_speed x the model step (0.267 s at fps 4). The orientation is always the recorded
+# one (RECORDED_ROTVEC). A measured pose more than 10 mm outside the box or 3 deg off that orientation is refused (HTTP
+# 400), not moved from.
+#
+# The model step follows the config's data.fps (8 raw rows at fps 4, 30 at fps 1): the schedules, the step cap and, for
+# a model trained at another fps, the planner's maxnorm box (0.05 m per fps-4 step, scaled with the step length unless
+# --maxnorm is given) all use it, and /health and /goal report it (step_rows, step_s).
 #
 # POST /plan with an .npz body {image (224,224,3) uint8, pose (6,) xyz + angle-axis, jaw (), [goal_index ()]} returns
 # JSON {target_pose, gripper_intent, action, executed_delta, safety_scaled, goal_index, goal_energy, plan_energy,
@@ -80,8 +85,16 @@ from scipy.spatial.transform import Rotation
 from app.vjepa_droid.transforms import make_transforms
 from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.eval import build_models, strip_prefixes
-from app.vjepa_hanoi.hanoi import hanoi_states
-from app.vjepa_hanoi.paper_protocol_eval import aids, goal_rows, goal_stages, moves, time_schedule
+from app.vjepa_hanoi.hanoi import RATE_HZ, hanoi_states, step_rows
+from app.vjepa_hanoi.paper_protocol_eval import (
+    FSTP,
+    aids,
+    default_maxnorm,
+    goal_rows,
+    goal_stages,
+    moves,
+    time_schedule,
+)
 from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn, rollout
 
 # fallback box when the goal archive has no measured_xyz: the six-task recordings (x 0.414-0.500, y -0.058-0.090,
@@ -90,7 +103,6 @@ WORKSPACE_MIN = np.array([0.409, -0.063, 0.057])
 WORKSPACE_MAX = np.array([0.505, 0.095, 0.197])
 RECORDED_ROTVEC = np.array([0.0, 0.7854, 0.0])  # the only orientation the recordings command (= START_POSE[3:6])
 OUTSIDE_TOL_M, ROT_TOL_RAD = 0.010, np.deg2rad(3.0)
-STEP_S = 8 / 30.0
 PLANNERS = {  # notebooks/utils/world_model_wrapper.py defaults; the paper's robot settings
     "plain": dict(rollout=2, samples=400, topk=10, cem_steps=10, momentum_mean=0.15, momentum_std=0.15, maxnorm=0.05),
     "paper": dict(rollout=1, samples=800, topk=10, cem_steps=10, momentum_mean=0.15, momentum_std=0.15, maxnorm=0.05),
@@ -117,6 +129,8 @@ class GoalPlanner:
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
         d = cfg["data"]
+        self.fstp = step_rows(d.get("fps", 4))  # raw rows per model step
+        self.step_s = self.fstp / RATE_HZ
         crop = d.get("crop_size", 256)
         self.tpf = (crop // d["patch_size"]) ** 2
         self.norm = cfg["loss"]["normalize_reps"]
@@ -152,7 +166,7 @@ class GoalPlanner:
         self.set_options(**self.defaults)
         self.final_stage = final_stage
         self.goal_archive = goal_archive
-        self.max_step = max_speed * STEP_S
+        self.max_step = max_speed * self.step_s
         self.box = (WORKSPACE_MIN, WORKSPACE_MAX, "six-task recordings (fallback)")
         if goal_archive is not None:
             z = np.load(goal_archive)
@@ -169,6 +183,10 @@ class GoalPlanner:
             self.bundle_data = {k: b[k] for k in b.files}
             if int(b["final_stage"]) != final_stage:
                 raise ValueError(f"the bundle's final goal is stage {int(b['final_stage'])}, not {final_stage}")
+            bundle_rows = int(b["step_rows"]) if "step_rows" in b.files else FSTP  # bundles before fps support: 8
+            if bundle_rows != self.fstp:
+                raise ValueError(f"the bundle's schedules count {bundle_rows}-row steps, the model's step is "
+                                 f"{self.fstp} rows (data.fps of {fname})")  # fmt: skip
             self.box = (b["box_min"], b["box_max"], f"training data of {str(b['goal_archive'])} (bundle)")
         self.goal_bundle = goal_bundle
         self.schedule_now = None
@@ -188,7 +206,10 @@ class GoalPlanner:
             raise ValueError("hold_open acts on the descend goal: use subgoals stages")
         self.options = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp), "hold_open": bool(hold_open),
                         "hold_xy": bool(hold_xy), "subgoals": subgoals}  # fmt: skip
-        self.cem_kw = dict(PLANNERS[self.protocol]) | self.planner_overrides  # --rollout / --samples etc., if given
+        base = dict(PLANNERS[self.protocol])
+        if self.fstp != FSTP:  # a model trained at another fps: the same speed box per step (default_maxnorm)
+            base["maxnorm"] = default_maxnorm(self.fstp)
+        self.cem_kw = base | self.planner_overrides  # --rollout / --samples / --maxnorm etc., if given
         if fix_x:  # disclosed deviation: x stays on the peg line in the play data, so a play model cannot learn it
             self.cem_kw["axis"] = {0: 0.0}  # the repo planner's own option for holding an action dimension
 
@@ -214,12 +235,12 @@ class GoalPlanner:
         with h5py.File(self.training_moves()[1][file], "r") as h:
             return h["pixels"][row]
 
-    def schedule(self, transition=None, stages=None):
+    def schedule(self, transition=None, stages=None, start="move"):
         """Paper protocol: median model steps the expert spends on each goal, over the training demos of
-        `transition` (all training moves if None or if it has none)."""
+        `transition` (all training moves if None or if it has none), from the move's first row or from the hover."""
         train = self.training_moves()[0]
         same = [m for m in train if m["transition"] == transition]
-        reach = time_schedule(same or train, self.final_stage, stages)
+        reach = time_schedule(same or train, self.final_stage, stages, self.fstp, start)
         return np.diff([0] + reach).tolist()
 
     def set_goal(self, images=None, board=None, transition=None, fix_x=None, hold_grasp=None, hold_open=None,
@@ -296,9 +317,15 @@ class GoalPlanner:
             else:
                 out["schedule"] = (self.bundle_data["schedules"][i] if i is not None
                                    else self.bundle_data["global_schedule"]).tolist()  # fmt: skip
+            key = "stage_hover_schedules" if stages_mode else "hover_schedules"
+            if i is not None and key in self.bundle_data:  # the same medians counted from each demo's hover
+                out["hover_schedule"] = self.bundle_data[key][i].tolist()
         elif self.protocol == "paper" and self.goal_archive is not None:
             out["schedule"] = self.schedule(transition, gst)
+            if transition is not None:
+                out["hover_schedule"] = self.schedule(transition, gst, "hover")
         out["goal_stages"] = self.goal_stages
+        out["step_rows"], out["step_s"] = self.fstp, self.step_s
         out["box"] = {"min": self.box[0].tolist(), "max": self.box[1].tolist(), "source": self.box[2]}
         return out
 
@@ -368,7 +395,8 @@ def serve(planner, host, port):
                 self._send(200, {"ok": True, "checkpoint": planner.checkpoint, "goal_archive": planner.goal_archive,
                                  "goal_bundle": planner.goal_bundle, "predictor_chunk": planner.predictor_chunk,
                                  "protocol": planner.protocol, "planner": planner.cem_kw, "options": planner.options,
-                                 "max_step_m": planner.max_step, "box": {"min": planner.box[0].tolist(),
+                                 "max_step_m": planner.max_step, "step_rows": planner.fstp,
+                                 "step_s": planner.step_s, "box": {"min": planner.box[0].tolist(),
                                  "max": planner.box[1].tolist(), "source": planner.box[2]}, "goal": planner.goal_desc,
                                  "n_goals": len(planner.goals)})  # fmt: skip
             else:
@@ -426,6 +454,8 @@ def main():
     p.add_argument("--samples", type=int, default=None, help="deviation: CEM samples (default: the protocol's)")
     p.add_argument("--gripper_std", type=float, default=None, help="deviation: CEM initial gripper std (repo 1.0)")
     p.add_argument("--gripper_clip", type=float, default=None, help="deviation: CEM gripper clip (repo 0.75)")
+    p.add_argument("--maxnorm", type=float, default=None,
+                   help="deviation: CEM per-axis box (default 0.05 m per fps-4 step, scaled with the model's step)")
     p.add_argument("--subgoals", choices=("paper3", "stages"), default="paper3",
                    help="deviation: stages = one goal per motion stage (default: the paper's three)")
     p.add_argument("--hold_open", action="store_true", help="task aid, off by default: gripper open, descend goal")
@@ -435,7 +465,8 @@ def main():
                           args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle,
                           predictor_chunk=args.predictor_chunk,
                           planner_overrides={"rollout": args.rollout, "samples": args.samples,
-                                             "gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip},
+                                             "gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip,
+                                             "maxnorm": args.maxnorm},
                           hold_open=args.hold_open, hold_xy=args.hold_xy, subgoals=args.subgoals)  # fmt: skip
     serve(planner, args.host, args.port)
 

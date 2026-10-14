@@ -54,6 +54,8 @@ def main():
     gp = GoalPlanner(os.path.join(args.bundle, "config.yaml"), os.path.join(args.bundle, "weights.pt"),
                      protocol="paper", goal_bundle=os.path.join(args.bundle, "goals.npz"),
                      predictor_chunk=args.predictor_chunk)  # fmt: skip
+    if gp.fstp != 8:  # the probe rows below are fps-4 steps of 8 raw rows
+        raise SystemExit(f"probe_planner supports fps-4 bundles only (this model's step is {gp.fstp} rows)")
     captured, cem = [], gp.mpc.cem
     gp.mpc.cem = lambda *a, **k: (captured.append(r := cem(*a, **k)), r)[1]  # keep the whole plan
     h = h5py.File(args.recording, "r")

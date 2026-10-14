@@ -25,7 +25,7 @@ import yaml
 from app.vjepa_droid.transforms import make_transforms
 from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.eval import STAGES, build_models, strip_prefixes
-from app.vjepa_hanoi.hanoi import hanoi_states, poses_to_diffs
+from app.vjepa_hanoi.hanoi import hanoi_states, poses_to_diffs, step_rows
 from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn
 
 GOAL_TYPES = ["step_1", "step_2", "step_4", "step_8", "step_16", "stage_end"] + [
@@ -108,6 +108,8 @@ def main():
     with open(args.fname) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     d = cfg["data"]
+    if step_rows(d.get("fps", 4)) != FSTP:  # goals, steps and the planner box here are counted in fps-4 steps
+        raise SystemExit(f"goal_distance_eval supports fps-4 models only; {args.fname} has data.fps {d.get('fps')}")
     crop = d.get("crop_size", 256)
     tpf = (crop // d["patch_size"]) ** 2
     norm = cfg["loss"]["normalize_reps"]

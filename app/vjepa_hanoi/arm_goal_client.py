@@ -42,7 +42,7 @@ from collections import deque
 
 import numpy as np
 
-from app.vjepa_hanoi.robot_io import START_POSE, STEP_S, Robot, step_goal_time
+from app.vjepa_hanoi.robot_io import SPEED_CAP_M_S, START_POSE, STEP_S, STEP_SLOW_S, Robot, step_goal_time
 
 EXECUTE_HELP = "real arm only: required, together with the environment variable EXECUTE=1 (run by the operator)"
 
@@ -212,7 +212,8 @@ def main():
                    help="deviation (paper protocol): gripper held closed while goal 2 is active")  # fmt: skip
     p.add_argument("--save-goal-image", help="capture the current transformed frame to this .npy and exit")
     p.add_argument("--steps", type=int, default=None, help="step budget (overrides the default)")
-    p.add_argument("--steps-per-move", type=int, default=120, help="~32 s per game move at 0.267 s per step")
+    p.add_argument("--steps-per-move", type=int, default=120,
+                   help="~32 s per game move in fps-4 steps of 0.267 s (scaled to the server model's step)")
     p.add_argument("--log", default="vjepa_plain_run.npz")
     p.add_argument("--no-park", dest="no_park", action="store_true",
                    help="start from the current pose instead of opening the gripper and parking at the start pose")
@@ -228,6 +229,13 @@ def main():
         args.tower_hanoi = os.environ.get("TOWER_HANOI", os.path.expanduser("~/ws/tower_hanoi"))
     if args.dry_run and not args.replay:
         p.error("--dry-run needs --replay <recording.h5>")
+    if not args.save_goal_image:  # the move-time rule (robot_io.step_goal_time) holds 36 mm/s only up to 36 mm steps
+        with urllib.request.urlopen(args.server + "/health", timeout=30) as resp:
+            health = json.loads(resp.read())
+        if float(health.get("max_step_m", 0.0)) > SPEED_CAP_M_S * STEP_SLOW_S + 1e-9:
+            p.error(f"the server allows {health['max_step_m'] * 1e3:.1f} mm steps (max_speed x a model step of "
+                    f"{health.get('step_s', STEP_S):.3f} s); robot_io moves a step in at most {STEP_SLOW_S:.1f} s, so "
+                    f"only steps up to {SPEED_CAP_M_S * STEP_SLOW_S * 1e3:.0f} mm stay under the proven 36 mm/s")
 
     robot = Robot(args)
     try:
@@ -253,9 +261,12 @@ def main():
             if budget is None:
                 if not (args.start and args.goal_board):
                     p.error("the default budget needs --start and --goal-board (or pass --steps)")
-                budget = 2 * board_distance(args.start, args.goal_board) * args.steps_per_move
-        print(f"goal: {goal['goal']}; budget {budget} model steps ({budget * STEP_S:.0f} s of recorded time)",
-              flush=True)  # fmt: skip
+                per_move = math.ceil(args.steps_per_move * 8 / int(goal.get("step_rows", 8)))  # in the model's steps
+                budget = 2 * board_distance(args.start, args.goal_board) * per_move
+        if args.dry_run:
+            robot.replay.step_rows = int(goal.get("step_rows", 8))  # one model step of the server's model per frame
+        print(f"goal: {goal['goal']}; budget {budget} model steps ({budget * goal.get('step_s', STEP_S):.0f} s of "
+              f"recorded time)", flush=True)  # fmt: skip
         if not args.no_park:  # the server refuses poses outside the trained workspace, so start where training did
             robot.gripper("open")
             robot.park(START_POSE)

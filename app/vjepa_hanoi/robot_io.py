@@ -21,7 +21,8 @@ import math
 import os
 import time
 
-STEP_S = 8 / 30.0  # one model step (fps 4 on 30 Hz): the planning unit and the schedule's clock, not the move time
+STEP_S = 8 / 30.0  # one model step of an fps-4 model (30 Hz): the planning unit and the schedule's clock, not the move
+# time; a model trained at another fps reports its own (step_rows, step_s) in the server's /health and /goal replies
 CLOSE_S, OPEN_S = 1.2, 1.0  # gripper timing of the recordings
 # The commanded pose at the start of every six-task expert episode (reference_pose at each ep_offset, identical in all
 # 60): the first move of the one-move test starts here. It is taken from the recordings rather than recomputed from
@@ -61,15 +62,16 @@ def step_goal_time(distance_m, jaw_change, steps_since_gripper, loaded_low):
 class ReplayCamera:
     """Dry run: serves recorded 224 px frames of one walk in order (stands in for camera + transform)."""
 
-    def __init__(self, path, episode=0, start_row=None):
+    def __init__(self, path, episode=0, start_row=None, step_rows=8):
         import h5py
 
         self.f = h5py.File(path, "r")
         self.row = int(self.f["ep_offset"][episode]) if start_row is None else int(start_row)
+        self.step_rows = int(step_rows)  # raw rows per model step (8 at fps 4)
 
     def image(self):
         img = self.f["pixels"][self.row]
-        self.row += 8
+        self.row += self.step_rows
         return img
 
     def pose_and_jaw(self):
@@ -172,9 +174,10 @@ class Robot:
         else:
             self.arm.move_to(tuple(pose), goal_time)
 
-    def replay_from(self, path, start_row):
-        """Dry run: replay `path` from raw row `start_row` (e.g. the start of a held-out test move)."""
-        self.replay = ReplayCamera(path, start_row=start_row)
+    def replay_from(self, path, start_row, step_rows=8):
+        """Dry run: replay `path` from raw row `start_row` (e.g. the start of a held-out test move), one model step of
+        `step_rows` raw rows per frame."""
+        self.replay = ReplayCamera(path, start_row=start_row, step_rows=step_rows)
 
     def pose(self):
         if self.dry:

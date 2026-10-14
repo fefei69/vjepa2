@@ -28,6 +28,7 @@ import yaml
 from app.vjepa_droid.transforms import make_transforms
 from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.eval import STAGES, build_models, strip_prefixes
+from app.vjepa_hanoi.hanoi import step_rows
 
 FSTP = 8
 
@@ -55,6 +56,8 @@ def main():
     with open(args.fname) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     d = cfg["data"]
+    if step_rows(d.get("fps", 4)) != FSTP:  # goals, steps and the planner box here are counted in fps-4 steps
+        raise SystemExit(f"energy_profile supports fps-4 models only; {args.fname} has data.fps {d.get('fps')}")
     crop = d.get("crop_size", 256)
     tpf = (crop // d["patch_size"]) ** 2
     norm = cfg["loss"]["normalize_reps"]

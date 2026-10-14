@@ -185,7 +185,8 @@ def main():
     p.add_argument("--cem_steps", type=int, default=10)
     p.add_argument("--momentum_mean", type=float, default=0.15)
     p.add_argument("--momentum_std", type=float, default=0.15)
-    p.add_argument("--maxnorm", type=float, default=0.05)
+    p.add_argument("--maxnorm", type=float, default=None,
+                   help="cem per-axis box (default 0.05 m per fps-4 step, scaled with the config's model step)")
     p.add_argument("--moving_mm", type=float, default=5.0, help="moving step: |true dxyz| >= this (mm per step)")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--out", default=None)
@@ -246,7 +247,7 @@ def main():
         cem_steps=args.cem_steps,
         momentum_mean=args.momentum_mean,
         momentum_std=args.momentum_std,
-        maxnorm=args.maxnorm,
+        maxnorm=args.maxnorm if args.maxnorm is not None else 0.05 * dataset.fstp / 8,  # = 0.05 at fps 4
     )
 
     keys = ("true_first", "plan_first", "true_sum", "plan_sum", "energy_true", "energy_zero", "energy_plan", "stage")

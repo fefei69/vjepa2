@@ -27,8 +27,10 @@
 #      the arm parks at the start: straight up first, then one leg above the rods. --start hover (default, as
 #      tower_hanoi's Q-WM runner) starts above the source peg's grasp point at the start height, where the demos pass
 #      at the end of their approach; goal 1's step budget is then shortened by the demos' approach steps
-#      (HOVER_APPROACH_STEPS), so [29, 16, 11] becomes [13, 16, 11]. --start episode starts at the demos' first pose,
-#      8 cm behind the rods in line with peg B, with the full schedule;
+#      (HOVER_APPROACH_STEPS), so [29, 16, 11] becomes [13, 16, 11]. For a model trained at another fps (the server
+#      reports step_rows != 8) the server's hover_schedule is used instead, the same medians counted from each demo's
+#      hover, since rounding the approach to whole 1 s steps can be off by one. --start episode starts at the demos'
+#      first pose, 8 cm behind the rods in line with peg B, with the full schedule;
 #   4. the paper schedule runs, each step executed as robot_io describes (Q-WM's move timing, settle window, still-arm
 #      frames, and the abort-only missed-grasp and low-lateral checks); then the retreat: below the low floor the jaw
 #      opens first (a ring stays on its rod), then straight up to the start height (a ring held higher stays held);
@@ -195,10 +197,14 @@ def main():
         health = json.loads(resp.read())
     if health.get("protocol") != "paper":
         p.error(f"the server runs protocol {health.get('protocol')!r}; start it with --protocol paper")
+    step_rows = int(health.get("step_rows", 8))  # raw rows per model step (8 at fps 4)
     if float(health.get("max_step_m", 0.0)) > SPEED_CAP_M_S * STEP_SLOW_S + 1e-9:  # the move-time rule's assumption
         p.error(f"the server allows {health['max_step_m'] * 1e3:.1f} mm steps; the move-time rule keeps steps under "
-                f"36 mm/s only up to {SPEED_CAP_M_S * STEP_SLOW_S * 1e3:.0f} mm: use the default --max_speed 0.10")
-    print(f"server: {health.get('checkpoint')} | protocol {health['protocol']} | planner {health['planner']}")
+                f"36 mm/s only up to {SPEED_CAP_M_S * STEP_SLOW_S * 1e3:.0f} mm: use the default --max_speed 0.10"
+                + ("" if step_rows == 8 else f" with an fps-4 model (this model's step is {step_rows} rows; a longer "
+                   "step needs a longer move time, which robot_io does not do yet)"))  # fmt: skip
+    print(f"server: {health.get('checkpoint')} | protocol {health['protocol']} | planner {health['planner']} | model "
+          f"step {step_rows} rows ({step_rows / 30:.3f} s)")  # fmt: skip
 
     runs = []
     for r in range(args.repeats):
@@ -267,12 +273,19 @@ def main():
                     raise RuntimeError(f"server options {goal.get('options')} != requested {VARIANTS[variant]}")
                 schedule = fixed_schedule or goal.get("schedule")
                 if args.start == "hover" and not fixed_schedule and schedule:  # the demos' timing from the hover
-                    schedule = [int(schedule[0]) - HOVER_APPROACH_STEPS[start[0]]] + [int(s) for s in schedule[1:]]
+                    if step_rows == 8:
+                        schedule = [int(schedule[0]) - HOVER_APPROACH_STEPS[start[0]]] + [int(s) for s in schedule[1:]]
+                    elif goal.get("hover_schedule"):
+                        schedule = [int(s) for s in goal["hover_schedule"]]
+                    else:
+                        raise RuntimeError("a model with a non-fps-4 step needs the server's hover_schedule: "
+                                           "re-export the bundle (export_robot_bundle --goals_only)")  # fmt: skip
                 if not schedule or len(schedule) != goal["n_goals"] or min(schedule) < 1:
                     raise RuntimeError(f"bad schedule {schedule} for {goal['n_goals']} goals")
                 switch, budget = [int(x) for x in np.cumsum(schedule)[:-1]], int(sum(schedule))
                 start_pose = robot.hover_pose(start[0]) if args.start == "hover" else START_POSE
                 meta.update({"schedule": schedule, "server_schedule": goal.get("schedule"), "start": args.start,
+                             "step_rows": step_rows, "server_hover_schedule": goal.get("hover_schedule"),
                              "start_pose": start_pose, "goal": goal["goal"], "planner": goal["planner"],
                              "box": goal.get("box")})  # fmt: skip
                 where = f"above peg {start[0]}" if args.start == "hover" else "at the demos' first pose"
@@ -280,9 +293,10 @@ def main():
                       f"mm; schedule {schedule} = {budget} model steps")  # fmt: skip
                 robot.check_camera()  # no frames (camera down): fails here, before any motion
                 phase = "parking"
-                if args.dry_run:  # with --start hover, replay from the demo's approach end (8 raw rows per step)
+                if args.dry_run:  # with --start hover, replay from the demo's approach end (the approach in raw rows)
                     path, row = replay[case]
-                    robot.replay_from(path, row + (8 * HOVER_APPROACH_STEPS[start[0]] if args.start == "hover" else 0))
+                    robot.replay_from(path, row + (8 * HOVER_APPROACH_STEPS[start[0]] if args.start == "hover" else 0),
+                                      step_rows)  # fmt: skip
                 robot.gripper("open")
                 jaw = robot.jaw()
                 meta["open_jaw"] = jaw

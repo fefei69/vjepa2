@@ -64,10 +64,11 @@ from app.vjepa_droid.transforms import make_transforms
 from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.eval import STAGES, build_models, strip_prefixes
 from app.vjepa_hanoi.goal_distance_eval import summarize
-from app.vjepa_hanoi.hanoi import hanoi_states, poses_to_diffs
+from app.vjepa_hanoi.hanoi import RATE_HZ, hanoi_states, poses_to_diffs, step_rows
 from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn
 
-FSTP = 8  # raw rows per model step (30 Hz, fps 4)
+FSTP = 8  # raw rows per model step of the fps-4 models (30 Hz); main() uses the config's data.fps
+MAXNORM_FPS4 = 0.05  # repo cem per-axis box at fps 4; other strides scale it with the step length (same speed box)
 BOARDS = ["".join(b) for b in itertools.product("ABC", repeat=4)]  # board_indices order, ring 1 first
 GOAL_STAGES = (4, 6)  # goals 1 and 2: the last row of these motion stages; goal 3 is the end of --final_stage
 STAGE_GOALS = (3, 4, 5, 6, 7)  # --goals stages: descend, grasp, lift, transit, insert; then the end of --final_stage
@@ -125,12 +126,23 @@ def goal_rows(move, final_stage, stages=None):
     return {g: int(move["rows"][move["stages"] == s].max()) for g, s in enumerate(stages, 1)}
 
 
-def time_schedule(train_moves, final_stage, stages=None):
-    """Median step (from the move's first row) at which the expert reaches goals 1..n, on the training split."""
+def time_schedule(train_moves, final_stage, stages=None, fstp=FSTP, start="move"):
+    """Median step at which the expert reaches goals 1..n, on the training split, counted from the move's first row
+    (start "move") or from the end of its approach, the hover above the source peg (start "hover": each demo's last
+    stage-2 row, for runs that start at the hover)."""
     n = len(stages or GOAL_STAGES + (final_stage,))
-    reach = np.array([[(goal_rows(m, final_stage, stages)[g] - m["rows"][0]) / FSTP for g in range(1, n + 1)]
+
+    def origin(m):
+        return int(m["rows"][0]) if start == "move" else int(m["rows"][m["stages"] == 2].max())
+
+    reach = np.array([[(goal_rows(m, final_stage, stages)[g] - origin(m)) / fstp for g in range(1, n + 1)]
                       for m in train_moves])  # fmt: skip
     return [int(round(x)) for x in np.median(reach, axis=0)]
+
+
+def default_maxnorm(fstp):
+    """The repo's 0.05 m box per fps-4 step, scaled to the step length (the same speed box, 187.5 mm/s)."""
+    return MAXNORM_FPS4 if fstp == FSTP else MAXNORM_FPS4 * fstp / FSTP
 
 
 def main():
@@ -145,10 +157,14 @@ def main():
     p.add_argument("--goal_source", choices=("train", "test"), default="train")
     p.add_argument("--final_stage", type=int, choices=(8, 9), default=8)
     p.add_argument("--max_rows", type=int, default=600)
+    p.add_argument("--row_stride", type=int, default=None,
+                   help="raw rows between evaluated rows (default: one model step); each row still plans one model "
+                        "step, e.g. 8 to evaluate an fps-1 model as densely as an fps-4 one")
     p.add_argument("--samples", type=int, default=800, help="paper: 800")
     p.add_argument("--cem_steps", type=int, default=10, help="paper: 10 refinement steps")
     p.add_argument("--rollout", type=int, default=1, help="paper: planning horizon 1")
-    p.add_argument("--maxnorm", type=float, default=0.05, help="repo cem per-axis box (paper: L1 ball 0.075)")
+    p.add_argument("--maxnorm", type=float, default=None,
+                   help="repo cem per-axis box (default: 0.05 per fps-4 step, scaled with the step; paper: L1 0.075)")
     p.add_argument("--fix_x", action="store_true", help="deviation, off by default: hold x (never varies in data)")
     p.add_argument("--hold_grasp", action="store_true", help="deviation, off by default: gripper closed during goal 2")
     p.add_argument("--gripper_std", type=float, default=1.0, help="planner deviation: CEM initial gripper std (1.0)")
@@ -163,6 +179,9 @@ def main():
     with open(args.fname) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
     d = cfg["data"]
+    fstp = step_rows(d.get("fps", 4))  # raw rows per model step (8 at fps 4)
+    maxnorm = default_maxnorm(fstp) if args.maxnorm is None else args.maxnorm
+    row_stride = args.row_stride or fstp
     crop = d.get("crop_size", 256)
     tpf = (crop // d["patch_size"]) ** 2
     norm = cfg["loss"]["normalize_reps"]
@@ -191,7 +210,7 @@ def main():
         crop_size=crop,
     )
     cem_kw = dict(rollout=args.rollout, samples=args.samples, topk=10, cem_steps=args.cem_steps,
-                  momentum_mean=0.15, momentum_std=0.15, maxnorm=args.maxnorm)  # fmt: skip
+                  momentum_mean=0.15, momentum_std=0.15, maxnorm=maxnorm)  # fmt: skip
     if (args.gripper_std, args.gripper_clip) != (1.0, 0.75):  # only when set, so default runs stay byte-identical
         cem_kw |= {"gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip}
     if args.hold_open and args.goals != "stages":
@@ -202,17 +221,17 @@ def main():
 
     train_moves, train_paths, train_incomplete = moves(args.goal_archive)
     test_moves, test_paths, test_incomplete = moves(args.archive)
-    reach = time_schedule(train_moves, args.final_stage, gstages)  # steps at which the expert reaches each goal
+    reach = time_schedule(train_moves, args.final_stage, gstages, fstp)  # steps at which the expert reaches each goal
     reach_by = {}  # transition -> its own medians (the arm server's rule)
     for t in {m["transition"] for m in train_moves}:
-        reach_by[t] = time_schedule([m for m in train_moves if m["transition"] == t], args.final_stage, gstages)
+        reach_by[t] = time_schedule([m for m in train_moves if m["transition"] == t], args.final_stage, gstages, fstp)
     exemplar = {}  # transition -> (file, goal rows) of its first complete training move
     for m in train_moves:
         exemplar.setdefault(m["transition"], (m["file"], goal_rows(m, args.final_stage, gstages)))
     files = {"train": [h5py.File(pth, "r") for pth in train_paths], "test": [h5py.File(pth, "r") for pth in test_paths]}
 
-    # rows: one model step apart from the start of each held-out move; the expert's next sample must be usable and
-    # must not pass the final goal frame
+    # rows: --row_stride raw rows apart (default one model step) from the start of each held-out move; the expert's
+    # next sample (one model step later) must be usable and must not pass the final goal frame
     cands, skipped_no_exemplar = [], 0
     for mi, m in enumerate(test_moves):
         if m["transition"] not in exemplar:
@@ -220,13 +239,13 @@ def main():
             continue
         usable, g_test = set(m["rows"].tolist()), goal_rows(m, args.final_stage, gstages)
         r0 = int(m["rows"][0])
-        for k in range((g_test[n_goals] - FSTP - r0) // FSTP + 1):
-            r = r0 + FSTP * k
-            if r not in usable or r + FSTP not in usable:
+        for r in range(r0, g_test[n_goals] - fstp + 1, row_stride):
+            k = (r - r0) // fstp if row_stride == fstp else (r - r0) / fstp  # model steps since the move's start
+            if r not in usable or r + fstp not in usable:
                 continue
             if eval_stages and int(m["stages"][m["rows"] == r][0]) not in eval_stages:
                 continue
-            g_stage = next(g for g in range(1, n_goals + 1) if g_test[g] >= r + FSTP)
+            g_stage = next(g for g in range(1, n_goals + 1) if g_test[g] >= r + fstp)
             rt = reach_by.get(m["transition"], reach) if args.schedule == "transition" else reach
             g_time = next((g for g in range(1, n_goals) if k < rt[g - 1]), n_goals)
             g = n_goals if args.goals == "final_only" else (g_stage if args.switch == "stage" else g_time)
@@ -253,8 +272,8 @@ def main():
             gsrc, gfile, grow = "test", m["file"], g_test[g]
         if (gsrc, gfile, grow) not in goal_cache:
             goal_cache[(gsrc, gfile, grow)] = encode(files[gsrc][gfile]["pixels"][grow])
-        pose = h["state"][[r, r + FSTP]].astype(np.float64)
-        jaw = h["proprio"][[r, r + FSTP], 6]
+        pose = h["state"][[r, r + fstp]].astype(np.float64)
+        jaw = h["proprio"][[r, r + fstp], 6]
         s7 = hanoi_states(pose, np.repeat(jaw[:, None], 8, axis=1))
         true = poses_to_diffs(s7)[0]
         z0 = encode(h["pixels"][r])
@@ -273,7 +292,7 @@ def main():
         rec["goal_stage"].append(gstages[g - 1])
         rec["goal"].append(g)
         rec["goal_stage_switch"].append(c["goal_stage_switch"])
-        rec["goal_seconds"].append((g_test[g] - r) / 30.0)  # when the expert reaches the active goal (< 0: passed)
+        rec["goal_seconds"].append((g_test[g] - r) / RATE_HZ)  # when the expert reaches the active goal (< 0: passed)
         rec["step_in_move"].append(c["k"])
         rec["file_index"].append(m["file"])
         rec["row"].append(r)
@@ -300,6 +319,9 @@ def main():
         "time_schedule_reach_steps": reach,
         "time_schedule_reach_steps_by_transition": reach_by if args.schedule == "transition" else None,
         "time_schedule_steps_per_goal": np.diff([0] + reach).tolist(),
+        "step_rows": fstp,
+        "row_stride": row_stride,
+        "step_s": fstp / RATE_HZ,
         "planner": cem_kw | {"source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1"},
         "checkpoint": args.checkpoint,
         "archive": args.archive,

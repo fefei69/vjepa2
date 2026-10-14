@@ -12,7 +12,9 @@
 #   after switch    planned |dx, dy| (mm, median) on grasp rows where the time schedule has already switched to the
 #                   next goal (lift or transit) while the held-out demo is still grasping (one row per case at most)
 #   descent/step    median planned dz on descend rows vs the expert's median dz on the same rows (mm per step)
-# Label: B = paper baseline, P = planner deviation (horizon, gripper std, per-stage goals), A = task aid.
+# Label: B = paper baseline, P = planner deviation (horizon, gripper std, per-stage goals, a model step other than fps
+# 4's 8 raw rows), A = task aid. For an fps-1 model use --prefix fps1_descent_ (rows every 8 raw rows, see offline.sbatch).
+# "hover close" is the first evaluated descend row, at most --row_stride raw rows below the hover.
 import argparse
 import glob
 import json
@@ -29,7 +31,8 @@ def label(r):
     if r["hold_open"] or r["hold_xy"] or r["hold_grasp"] or r["fix_x"]:
         return "A"
     pl = r["planner"]
-    if r["goals"] != "paper3" or pl["rollout"] != 1 or pl["samples"] != 800 or "gripper_std" in pl:
+    if r["goals"] != "paper3" or pl["rollout"] != 1 or pl["samples"] != 800 or "gripper_std" in pl \
+            or r.get("step_rows", 8) != 8:
         return "P"
     return "B"
 

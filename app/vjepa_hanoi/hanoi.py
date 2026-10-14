@@ -28,6 +28,12 @@ logger = getLogger()
 # and closedness transitions stay within one model step of the physical 50%-travel point (measured over 5,455 events).
 GRIPPER_OPEN = 0.0340
 GRIPPER_CLOSED = 0.0309
+RATE_HZ = 30.0  # rate_hz of every recording (the loader asserts it per archive)
+
+
+def step_rows(fps, rate_hz=RATE_HZ):
+    """Raw rows per model step for a config's data.fps, as the loader samples clips (fps 4 -> 8 rows = 0.267 s)."""
+    return ceil(rate_hz / fps)
 
 
 def poses_to_diffs(poses):
