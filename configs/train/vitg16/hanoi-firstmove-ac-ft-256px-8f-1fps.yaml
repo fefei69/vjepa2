@@ -6,6 +6,10 @@
 # states, now 1 s apart. Why: at fps 4 the descend to the ring is 7.8 model steps and every planner setting tried
 # offline either closed the jaws at the hover or needed horizon 3 (robot_results/2026-10-13/cluster_offline); at fps 1
 # it is 2.1 steps (every motion stage 1.0-3.1), so per-stage goals fall within a horizon of 1-3.
+# The rollout loss stays the paper's (loss.auto_steps 2): at fps 1 it already supervises a 2 s rollout, the descend.
+# Not a training change: meta.val_every 1 (was 5). A-firstmove's validation loss was lowest at its first check
+# (epoch 5, 0.607) and rose at every later one (0.645 at epoch 50), so best.pt could not be earlier than epoch 5;
+# with ~35% fewer clips this run overfits at least as fast. Costs ~40 s of validation per epoch.
 # Launch: sbatch --export=ALL,CONFIG=configs/train/vitg16/hanoi-firstmove-ac-ft-256px-8f-1fps.yaml app/vjepa_hanoi/train.sbatch
 app: vjepa_hanoi
 folder: /scratch/cw5167/checkpoints/vjepa2_ac_hanoi/A_firstmove_1fps_vitg_finetune_v1
@@ -46,7 +50,7 @@ meta:
   resume_checkpoint: null
   checkpoint_every: 5         # latest.pt every 5 epochs (~6 GB B / ~12 GB A) = resume granularity
   save_every_freq: 25
-  val_every: 5
+  val_every: 1               # best.pt selection every epoch (A-firstmove: lowest at its first check, epoch 5)
   seed: 239
   use_sdpa: true
 model:
