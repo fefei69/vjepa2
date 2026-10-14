@@ -7,7 +7,7 @@
 #SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
-#SBATCH --time=10:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/slurm/%x-%j.out
 
 # Offline descend/grasp experiments on one H200 (no robot). Results land in robot_results/2026-10-13/cluster_offline.
@@ -50,6 +50,8 @@ setting() {  # name -> paper_protocol_eval flags; label: B = paper baseline, P =
     aid_stages_open_xy_h3) echo "--goals stages --hold_open --hold_xy --rollout 3" ;;
     aid_stages_all_h1) echo "--goals stages --hold_open --hold_xy --hold_grasp" ;;
     aid_stages_all_h2) echo "--goals stages --hold_open --hold_xy --hold_grasp --rollout 2" ;;
+    aid_stages_xy_h3) echo "--goals stages --hold_xy --rollout 3" ;;
+    aid_stages_xy_grasp_h3) echo "--goals stages --hold_xy --hold_grasp --rollout 3" ;;
     *) echo "unknown setting $1" >&2; exit 2 ;;
   esac
 }

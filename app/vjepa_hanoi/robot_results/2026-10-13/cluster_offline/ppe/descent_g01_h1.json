@@ -1,0 +1,145 @@
+{
+ "goals": "paper3",
+ "switch": "time",
+ "goal_source": "train",
+ "final_stage": 8,
+ "fix_x": false,
+ "hold_grasp": false,
+ "hold_open": false,
+ "hold_xy": false,
+ "eval_stages": [
+  3,
+  4
+ ],
+ "goal_frames": {
+  "1": "end of stage 4 (grasp)",
+  "2": "end of stage 6 (transit)",
+  "3": "end of stage 8 (release)"
+ },
+ "schedule": "transition",
+ "time_schedule_reach_steps": [
+  29,
+  45,
+  56
+ ],
+ "time_schedule_reach_steps_by_transition": {
+  "CCCC>ACCC": [
+   29,
+   53,
+   64
+  ],
+  "AAAA>CAAA": [
+   29,
+   53,
+   64
+  ],
+  "BBBB>ABBB": [
+   26,
+   42,
+   54
+  ],
+  "BBBB>CBBB": [
+   26,
+   42,
+   54
+  ],
+  "AAAA>BAAA": [
+   29,
+   45,
+   56
+  ],
+  "CCCC>BCCC": [
+   29,
+   45,
+   56
+  ]
+ },
+ "time_schedule_steps_per_goal": [
+  29,
+  16,
+  11
+ ],
+ "planner": {
+  "rollout": 1,
+  "samples": 800,
+  "topk": 10,
+  "cem_steps": 10,
+  "momentum_mean": 0.15,
+  "momentum_std": 0.15,
+  "maxnorm": 0.05,
+  "gripper_std": 0.1,
+  "gripper_clip": 0.75,
+  "source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1"
+ },
+ "checkpoint": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/A_firstmove_vitg_finetune_v1/best.pt",
+ "archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/test.npz",
+ "goal_archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/train.npz",
+ "moves": {
+  "test": 6,
+  "test_incomplete_skipped": 0,
+  "test_without_training_exemplar": 0,
+  "train": 48,
+  "train_incomplete_skipped": 0,
+  "candidate_rows": 78
+ },
+ "switch_agreement_with_stage": 1.0,
+ "overall": {
+  "rows": 78,
+  "goal_seconds_median": 2.1333333333333333,
+  "moving_rows": 36,
+  "direction_cos_median": 0.9034502285900035,
+  "direction_correct": 1.0,
+  "direction_within_45deg": 0.8611111111111112,
+  "yz_err_over_zero_median": 1.5223290316363964,
+  "gripper_events": 4,
+  "gripper_sign_accuracy": 1.0
+ },
+ "by_stage": {
+  "descend_source": {
+   "rows": 48,
+   "goal_seconds_median": 2.45,
+   "moving_rows": 36,
+   "direction_cos_median": 0.9034502285900035,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8611111111111112,
+   "yz_err_over_zero_median": 1.5223290316363964,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "grasp": {
+   "rows": 30,
+   "goal_seconds_median": 0.8500000000000001,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 1.0
+  }
+ },
+ "by_goal": {
+  "goal_1": {
+   "rows": 72,
+   "goal_seconds_median": 1.9166666666666665,
+   "moving_rows": 36,
+   "direction_cos_median": 0.9034502285900035,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8611111111111112,
+   "yz_err_over_zero_median": 1.5223290316363964,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 1.0
+  },
+  "goal_2": {
+   "rows": 6,
+   "goal_seconds_median": 4.3,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  }
+ }
+}

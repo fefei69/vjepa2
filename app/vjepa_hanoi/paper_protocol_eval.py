@@ -287,7 +287,7 @@ def main():
     allm = np.ones(len(rec["stage"]), bool)
     result = {
         "goals": args.goals,
-        "switch": args.switch if args.goals == "paper3" else "none",
+        "switch": args.switch if args.goals != "final_only" else "none",
         "goal_source": args.goal_source,
         "final_stage": args.final_stage,
         "fix_x": args.fix_x,

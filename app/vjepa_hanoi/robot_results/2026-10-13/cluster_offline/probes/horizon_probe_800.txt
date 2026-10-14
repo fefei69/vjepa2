@@ -1,0 +1,76 @@
+[INFO    ][2026-10-13 18:47:13][root                ][init_video_model         ] VisionTransformer(
+  (patch_embed): PatchEmbed3D(
+    (proj): Conv3d(3, 1408, kernel_size=(2, 16, 16), stride=(2, 16, 16))
+  )
+  (blocks): ModuleList(
+    (0-39): 40 x Block(
+      (norm1): LayerNorm((1408,), eps=1e-06, elementwise_affine=True, bias=True)
+      (attn): RoPEAttention(
+        (qkv): Linear(in_features=1408, out_features=4224, bias=True)
+        (attn_drop): Dropout(p=0.0, inplace=False)
+        (proj): Linear(in_features=1408, out_features=1408, bias=True)
+        (proj_drop): Dropout(p=0.0, inplace=False)
+      )
+      (drop_path): Identity()
+      (norm2): LayerNorm((1408,), eps=1e-06, elementwise_affine=True, bias=True)
+      (mlp): MLP(
+        (fc1): Linear(in_features=1408, out_features=6144, bias=True)
+        (act): GELU(approximate='none')
+        (fc2): Linear(in_features=6144, out_features=1408, bias=True)
+        (drop): Dropout(p=0.0, inplace=False)
+      )
+    )
+  )
+  (norm): LayerNorm((1408,), eps=1e-06, elementwise_affine=True, bias=True)
+)
+[INFO    ][2026-10-13 18:47:13][root                ][init_video_model         ] VisionTransformerPredictorAC(
+  (predictor_embed): Linear(in_features=1408, out_features=1024, bias=True)
+  (action_encoder): Linear(in_features=7, out_features=1024, bias=True)
+  (state_encoder): Linear(in_features=7, out_features=1024, bias=True)
+  (extrinsics_encoder): Linear(in_features=6, out_features=1024, bias=True)
+  (predictor_blocks): ModuleList(
+    (0-23): 24 x ACBlock(
+      (norm1): LayerNorm((1024,), eps=1e-06, elementwise_affine=True, bias=True)
+      (attn): ACRoPEAttention(
+        (qkv): Linear(in_features=1024, out_features=3072, bias=True)
+        (attn_drop): Dropout(p=0.0, inplace=False)
+        (proj): Linear(in_features=1024, out_features=1024, bias=True)
+        (proj_drop): Dropout(p=0.0, inplace=False)
+      )
+      (drop_path): Identity()
+      (norm2): LayerNorm((1024,), eps=1e-06, elementwise_affine=True, bias=True)
+      (mlp): MLP(
+        (fc1): Linear(in_features=1024, out_features=4096, bias=True)
+        (act): GELU(approximate='none')
+        (fc2): Linear(in_features=4096, out_features=1024, bias=True)
+        (drop): Dropout(p=0.0, inplace=False)
+      )
+    )
+  )
+  (predictor_norm): LayerNorm((1024,), eps=1e-06, elementwise_affine=True, bias=True)
+  (predictor_proj): Linear(in_features=1024, out_features=1408, bias=True)
+)
+[INFO    ][2026-10-13 18:47:13][root                ][init_video_model         ] Encoder number of parameters: 1012173952
+[INFO    ][2026-10-13 18:47:13][root                ][init_video_model         ] Predictor number of parameters: 305220992
+  self.gen = func(*args, **kwds)
+
+=== live hover (hardware run, step 1): z 191 mm, goal 'ring grasped (bundle goal 1)'  
+    H=1 (800): dxyz [+9.8 -31.9 -50.0] mm, grip +0.75 -> close | energy now 0.531, after plan 0.409 (8 s)
+    H=2 (800): dxyz [+0.0 -1.5 -50.0] mm, grip +0.73 -> close | energy now 0.531, after plan 0.397 (21 s)
+          whole plan: dz -50 grip +0.73 | dz -49 grip +0.00
+    H=3 (800): dxyz [-16.3 -13.9 -50.0] mm, grip +0.00 -> open  | energy now 0.531, after plan 0.364 (41 s)
+          whole plan: dz -50 grip +0.00 | dz -46 grip +0.39 | dz -50 grip +0.73
+
+=== held-out hover: z 191 mm, goal 'ring grasped (bundle goal 1)'  expert next: dxyz [+0.3 -0.1 -0.1] mm, grip +0.00
+    H=1 (800): dxyz [-28.0 +10.6 -50.0] mm, grip +0.75 -> close | energy now 0.519, after plan 0.404 (7 s)
+    H=2 (800): dxyz [-5.1 +2.3 -50.0] mm, grip +0.59 -> close | energy now 0.519, after plan 0.393 (21 s)
+          whole plan: dz -50 grip +0.59 | dz -48 grip +0.00
+    H=3 (800): dxyz [-20.6 -22.4 -49.9] mm, grip +0.00 -> open  | energy now 0.519, after plan 0.360 (41 s)
+          whole plan: dz -50 grip +0.00 | dz -18 grip +0.27 | dz -50 grip +0.73
+
+=== held-out, 4 steps into the descent: z 141 mm, goal 'ring grasped (bundle goal 1)'  expert next: dxyz [-0.1 -0.1 -24.2] mm, grip +0.00
+    H=1 (800): dxyz [-14.1 +11.3 -50.0] mm, grip +0.75 -> close | energy now 0.500, after plan 0.354 (7 s)
+    H=2 (800): dxyz [-5.2 +7.1 -50.0] mm, grip +0.74 -> close | energy now 0.500, after plan 0.360 (21 s)
+          whole plan: dz -50 grip +0.74 | dz -14 grip -0.69
+    H=3 (800): dxyz [+6.3 -9.4 -30.1] mm, grip -0.69 -> open  | energy now 0.500, after plan 0.339 (41 s)
+          whole plan: dz -30 grip -0.69 | dz -13 grip +0.75 | dz -32 grip +0.74
