@@ -65,7 +65,13 @@ from app.vjepa_hanoi.robot_io import RECORDED_OPEN_COMMAND, SPEED_CAP_M_S, START
 BOARDS = ["".join(b) for b in itertools.product("ABC", repeat=4)]  # board_indices order, ring 1 first
 CASES = ["AAAA>BAAA", "AAAA>CAAA", "BBBB>ABBB", "BBBB>CBBB", "CCCC>ACCC", "CCCC>BCCC"]
 _OFF = {"fix_x": False, "hold_grasp": False, "hold_open": False, "hold_xy": False, "subgoals": "paper3"}
-VARIANTS = {"faithful": _OFF, "hold": _OFF | {"hold_grasp": True}}  # every server option, so /goal echoes them exactly
+VARIANTS = {  # every server option, so /goal echoes them exactly; see robot_results/2026-10-13/cluster_offline
+    "faithful": _OFF,  # paper baseline (with the server's default --rollout 1)
+    "hold": _OFF | {"hold_grasp": True},  # task aid
+    "stages": _OFF | {"subgoals": "stages"},  # planner deviation: one goal per motion stage (use --rollout 3)
+    "stages_xy": _OFF | {"subgoals": "stages", "hold_xy": True, "hold_grasp": True},  # + task aids
+    "stages_open_xy": _OFF | {"subgoals": "stages", "hold_open": True, "hold_xy": True, "hold_grasp": True},
+}
 PROGRESS = {  # furthest point the move reached, judged by the operator
     "0": "never reached the ring",
     "1": "reached the ring, no grasp",
@@ -160,8 +166,8 @@ def main():
             fixed_schedule = [int(x) for x in args.schedule.split(",")]
         except ValueError:
             fixed_schedule = []
-        if len(fixed_schedule) != 3 or min(fixed_schedule) < 1:
-            p.error("--schedule needs three positive step counts, one per goal (e.g. 29,16,11)")
+        if not fixed_schedule or min(fixed_schedule) < 1:
+            p.error("--schedule needs positive step counts, one per goal (e.g. 29,16,11; 6 with stage subgoals)")
     replay = {}
     if args.dry_run:
         if not args.replay_archive:

@@ -82,7 +82,8 @@ def post(server, path, **arrays):
     np.savez(buf, **arrays)
     req = urllib.request.Request(server + path, data=buf.getvalue(), method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        # PLANNER_TIMEOUT_S: seconds to wait for one plan (default 120; H=3 at 800 samples on a 16 GB GPU needs more)
+        with urllib.request.urlopen(req, timeout=float(os.environ.get("PLANNER_TIMEOUT_S", 120))) as resp:
             out = json.loads(resp.read())
     except urllib.error.HTTPError as e:  # the server answers 400 with {"error": reason}
         try:
