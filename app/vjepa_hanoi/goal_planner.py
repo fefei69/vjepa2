@@ -49,9 +49,9 @@
 #   --sampling data     samples kept inside the training actions' range at the model step: from --goal_archive, or
 #                       from the bundle (export_robot_bundle stores the bounds in goals.npz)
 #   --sampling cat      categorical planning over a codebook of training actions (stay, close, open, 48 k-means moves;
-#                       paper_protocol_eval header), from --goal_archive or the bundle; codes longer than the step
-#                       cap (--max_speed x the model step) are dropped, so every planned step executes unscaled
-#                       (fps 1 on the arm: --max_speed 0.036 keeps the 36 mm rule and the codes up to 36 mm);
+#                       paper_protocol_eval header), from --goal_archive or the bundle; a planned step longer than
+#                       the cap (--max_speed x the model step) is scaled down when executed, as for every planner
+#                       (--limit_codes_to_cap instead drops those codes; offline it fails at fps 1 with 36 mm);
 #                       --guard_floor_mm 166.13 (robot_io's low floor) also drops, per step, the codes more than 3 mm
 #                       sideways with an end below that height, which the low-lateral guard would abort
 #
@@ -141,7 +141,7 @@ class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
                  fix_x=False, hold_grasp=False, goal_bundle=None, predictor_chunk=0, planner_overrides=None,
                  hold_open=False, hold_xy=False, subgoals="paper3", planner="protocol", sampling="box",
-                 guard_floor_mm=None):
+                 guard_floor_mm=None, limit_codes_to_cap=False):
         if guard_floor_mm is not None and sampling != "cat":
             raise ValueError("--guard_floor_mm is a --sampling cat option")
         self.guard_floor = None if guard_floor_mm is None else guard_floor_mm / 1e3
@@ -229,14 +229,14 @@ class GoalPlanner:
             if int(self.codebook["step_rows"]) != self.fstp:
                 raise ValueError(f"the codebook is for {self.codebook['step_rows']}-row steps, the model's step is "
                                  f"{self.fstp} rows")  # fmt: skip
-            # plan only steps the safety cap below executes unscaled (at fps 4 every code is shorter than the cap;
-            # at fps 1 with --max_speed 0.036 this keeps the codes of at most 36 mm)
-            from app.vjepa_hanoi.action_bounds import limit_codebook
+            if limit_codes_to_cap:  # opt-in: plan only steps the safety cap below executes unscaled. Offline
+                # (descent_replay) this fails at fps 1 with a 36 mm cap: the planner moves sideways at the hover
+                from app.vjepa_hanoi.action_bounds import limit_codebook
 
-            n_codes = len(self.codebook["codes"])
-            self.codebook = limit_codebook(self.codebook, self.max_step)
-            print(f"codebook: {len(self.codebook['codes'])} of {n_codes} codes within the "
-                  f"{self.max_step * 1e3:.1f} mm step cap")  # fmt: skip
+                n_codes = len(self.codebook["codes"])
+                self.codebook = limit_codebook(self.codebook, self.max_step)
+                print(f"codebook: {len(self.codebook['codes'])} of {n_codes} codes within the "
+                      f"{self.max_step * 1e3:.1f} mm step cap")  # fmt: skip
         if sampling == "data":
             if self.bundle is not None:
                 if "action_bounds_json" not in self.bundle_data:
@@ -545,6 +545,8 @@ def main():
                    help="--sampling cat: the arm's low floor in mm (robot_io: workspace transit_z - 25 mm, 166.13 on "
                         "2026-10-13): steps more than 3 mm sideways with an end below it are not planned (the guard "
                         "would abort them; the guard itself stays on)")
+    p.add_argument("--limit_codes_to_cap", action="store_true",
+                   help="--sampling cat: drop codes longer than the step cap instead of scaling the executed step")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
                           args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle,
@@ -553,7 +555,8 @@ def main():
                                              "gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip,
                                              "maxnorm": args.maxnorm},
                           hold_open=args.hold_open, hold_xy=args.hold_xy, subgoals=args.subgoals,
-                          planner=args.planner, sampling=args.sampling, guard_floor_mm=args.guard_floor_mm)  # fmt: skip
+                          planner=args.planner, sampling=args.sampling, guard_floor_mm=args.guard_floor_mm,
+                          limit_codes_to_cap=args.limit_codes_to_cap)  # fmt: skip
     serve(planner, args.host, args.port)
 
 
