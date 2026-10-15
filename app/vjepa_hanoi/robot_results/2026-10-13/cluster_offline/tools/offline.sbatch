@@ -83,6 +83,15 @@ setting() {  # name -> paper_protocol_eval flags; label: B = paper baseline, P =
     data_stages_h1) echo "--sampling data --goals stages" ;;
     data_stages_h2) echo "--sampling data --goals stages --rollout 2" ;;
     aid_data_stages_all_h2) echo "--sampling data --goals stages --hold_open --hold_xy --hold_grasp --rollout 2" ;;
+    cat_h1) echo "--sampling cat" ;;                       # categorical over 51 training-action codes, paper3 goals
+    cat_h2) echo "--sampling cat --rollout 2" ;;
+    cat_stages_h1) echo "--sampling cat --goals stages" ;;   # H1, H2: every code sequence scored (exact)
+    cat_stages_h2) echo "--sampling cat --goals stages --rollout 2" ;;
+    cat_stages_h3) echo "--sampling cat --goals stages --rollout 3 --samples 400" ;;   # categorical CEM, prior ** 0.5
+    cat_stages_h3_t0) echo "--sampling cat --goals stages --rollout 3 --samples 400 --cat_temp 0" ;;  # uniform start
+    cat_stages_h3_t1) echo "--sampling cat --goals stages --rollout 3 --samples 400 --cat_temp 1" ;;  # data frequencies
+    aid_cat_stages_h2) echo "--sampling cat --goals stages --hold_xy --hold_grasp --rollout 2" ;;
+    aid_cat_stages_all_h2) echo "--sampling cat --goals stages --hold_open --hold_xy --hold_grasp --rollout 2" ;;
     *) echo "unknown setting $1" >&2; exit 2 ;;
   esac
 }

@@ -54,6 +54,42 @@ def action_bounds(archive, fps, pct=0.1, moving_mm=5.0):
     }
 
 
+def kmeans(x, k, seed=0, iters=100):
+    """Plain k-means (k-means++ start), deterministic for a seed. x [N, d] -> centers [k, d], labels [N]."""
+    rng = np.random.default_rng(seed)
+    centers = [x[rng.integers(len(x))]]
+    for _ in range(1, k):
+        d2 = np.min(((x[:, None] - np.asarray(centers)[None]) ** 2).sum(-1), axis=1)
+        centers.append(x[rng.choice(len(x), p=d2 / d2.sum())])
+    centers = np.asarray(centers)
+    for _ in range(iters):
+        labels = np.argmin(((x[:, None] - centers[None]) ** 2).sum(-1), axis=1)
+        new = np.stack([x[labels == j].mean(0) if (labels == j).any() else centers[j] for j in range(k)])
+        if np.allclose(new, centers):
+            break
+        centers = new
+    return centers, labels
+
+
+def action_codebook(archive, fps, k_move=48, moving_mm=5.0, grip=0.5, seed=0):
+    """A finite action set for the categorical planner (--sampling cat), from the training actions at this fps.
+    Codes are rows [dx, dy, dz, gripper]: 'stay' (0, 0, 0, 0), 'close' (0, 0, 0, +1), 'open' (0, 0, 0, -1) (the expert
+    opens and closes only while still: |xyz| <= 4.4 mm at fps 1), and the k_move k-means centers of the moving steps
+    (|xyz| >= moving_mm, gripper unchanged). prior: each code's share of the training actions (nearest code)."""
+    a, fstp, clips = training_actions(archive, fps)
+    xyz, g = a[:, :3], a[:, 6]
+    is_grip = np.abs(g) >= grip
+    moving = ~is_grip & (np.linalg.norm(xyz, axis=1) >= moving_mm / 1e3)
+    centers, labels = kmeans(xyz[moving], k_move, seed)
+    codes = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, -1.0]]
+    codes += [[float(c[0]), float(c[1]), float(c[2]), 0.0] for c in centers]
+    prior = [float((~is_grip & ~moving).mean()), float((g >= grip).mean()), float((g <= -grip).mean())]
+    prior += [float((labels == j).sum() / len(a)) for j in range(k_move)]
+    return {"codes": codes, "prior": prior, "names": ["stay", "close", "open"] + [f"move{j}" for j in range(k_move)],
+            "fps": fps, "step_rows": fstp, "k_move": k_move, "moving_mm": moving_mm, "archive": archive,
+            "actions": int(len(a)), "clips": clips}
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--archive", required=True, help="training split .npz")

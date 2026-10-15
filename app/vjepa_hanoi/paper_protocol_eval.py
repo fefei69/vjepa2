@@ -61,6 +61,11 @@
 #     moves or opens/closes (|gripper| >= 0.5 zeroes its xyz, else its gripper: the expert never does both in one
 #     step); the mean is kept as sample 0 and the best-scoring sample is executed instead of the elite mean (which
 #     may average a moving and a closing elite into an unseen action). Momentum, horizon and energy: from --protocol.
+#   - --sampling cat: categorical planning over a finite action set (mpc_utils.cem_categorical): 'stay', 'close',
+#     'open' and the --cat_k k-means centers of the moving training steps at the model step
+#     (action_bounds.action_codebook on --goal_archive). Every code sequence is scored when there are at most 4096
+#     (exact search: H=1, and H=2 with 51 codes); otherwise categorical CEM (samples / iterations / top-k from
+#     --protocol) starting from the codes' training frequencies ** --cat_temp. Gripper feasibility as for data.
 # --eval_stages 3,4 evaluates only rows in those motion stages (row selection, not a planner change): the arm runner
 # starts at the hover, so the approach rows (stages 1-2) do not apply to it.
 
@@ -205,8 +210,12 @@ def main():
     p.add_argument("--hold_xy", action="store_true", help="task aid, off by default: x/y held (descend/grasp goals)")
     p.add_argument("--protocol", choices=("paper", "jepawms"), default="paper",
                    help="planner preset: paper (V-JEPA 2 / repo cem) or jepawms (see the header)")
-    p.add_argument("--sampling", choices=("box", "data"), default="box",
-                   help="box: the repo's clip box; data: keep samples inside the training actions' range (header)")
+    p.add_argument("--sampling", choices=("box", "data", "cat"), default="box",
+                   help="box: the repo's clip box; data: keep samples inside the training actions' range; "
+                        "cat: categorical over a codebook of training actions (header)")
+    p.add_argument("--cat_k", type=int, default=48, help="--sampling cat: k-means codes of the moving steps")
+    p.add_argument("--cat_temp", type=float, default=0.5,
+                   help="--sampling cat, categorical CEM: initial distribution = code frequency ** temp (0 uniform)")
     p.add_argument("--eval_stages", default="", help="evaluate only rows in these motion stages, e.g. 3,4")
     p.add_argument("--predictor_chunk", type=int, default=0, help="CEM samples per predictor call (memory only)")
     p.add_argument("--out", required=True)
@@ -251,7 +260,7 @@ def main():
                   momentum_mean=0.15, momentum_std=0.15, maxnorm=maxnorm)  # fmt: skip
     if (args.gripper_std, args.gripper_clip) != (1.0, 0.75):  # only when set, so default runs stay byte-identical
         cem_kw |= {"gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip}
-    objective, bounds = mpc.l1, None
+    objective, bounds, codebook = mpc.l1, None, None
     if args.protocol == "jepawms":
         if (args.rollout, args.samples, args.cem_steps, args.maxnorm, args.gripper_std, args.gripper_clip) != (
             1, 800, 10, None, 1.0, 0.75):  # fmt: skip
@@ -262,6 +271,14 @@ def main():
 
         bounds = action_bounds(args.goal_archive, d.get("fps", 4))
         cem_kw |= data_sampling(bounds)
+    plan_fn = mpc.cem
+    if args.sampling == "cat":
+        from app.vjepa_hanoi.action_bounds import action_codebook
+
+        codebook = action_codebook(args.goal_archive, d.get("fps", 4), k_move=args.cat_k)
+        cem_kw = {k: cem_kw[k] for k in ("rollout", "samples", "cem_steps", "topk")} | {
+            "codebook": codebook["codes"], "code_prior": codebook["prior"], "prior_temp": args.cat_temp}
+        plan_fn = mpc.cem_categorical
     if args.hold_open and args.goals != "stages":
         p.error("--hold_open acts on the descend goal: use --goals stages")
     gstages = goal_stages(args.goals, args.final_stage)
@@ -331,7 +348,7 @@ def main():
         with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype, enabled=dtype != torch.float32):
             axis, close = aids(gstages[g - 1], args.fix_x, args.hold_grasp and args.goals != "final_only",
                                args.hold_open, args.hold_xy)  # fmt: skip
-            plan = mpc.cem(context_frame=z0, context_pose=pose_t, goal_frame=goal_cache[(gsrc, gfile, grow)],
+            plan = plan_fn(context_frame=z0, context_pose=pose_t, goal_frame=goal_cache[(gsrc, gfile, grow)],
                            world_model=step_fn, close_gripper=close, objective=objective,
                            **(cem_kw | {"axis": axis}))[0]  # fmt: skip
         rec["true"].append(true)
@@ -378,6 +395,7 @@ def main():
         "protocol": args.protocol,
         "sampling": args.sampling,
         "action_bounds": bounds,
+        "codebook": codebook,
         "checkpoint": args.checkpoint,
         "archive": args.archive,
         "goal_archive": args.goal_archive,

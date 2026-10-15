@@ -91,7 +91,7 @@ def main():
         name = os.path.basename(js)[len(args.prefix):-5]
         aids = ",".join(k for k in ("hold_open", "hold_xy", "hold_grasp", "fix_x") if r.get(k)) or "-"
         pl = r["planner"]
-        gstd = pl["init_std"][3] if "init_std" in pl else pl.get("gripper_std", 1.0)
+        gstd = "cat" if "codebook" in pl else pl["init_std"][3] if "init_std" in pl else pl.get("gripper_std", 1.0)
         lines.append(f"| {name} | {label(r)} | {pl['rollout']} | {r['goals']} | {gstd} | {aids} "
                      f"| {m['hover_close']}/{m['cases']} | {m['early_close']:.2f} | {m['close_at_bottom']:.2f} "
                      f"| {m['sideways_median']:.1f} / {m['sideways_p90']:.1f} | {m['after_switch']} | {m['descent_plan']:+.1f} vs "

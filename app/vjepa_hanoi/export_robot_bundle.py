@@ -14,7 +14,8 @@
 #                 stages 3-7 and the final stage of the same demo (stage_frames) and their schedule (stage_schedules);
 #                 the same schedules counted from each demo's hover (hover_schedules, stage_hover_schedules) for runs
 #                 that start there; step_rows, the model step in raw rows (the config's data.fps: 8 at fps 4); and
-#                 action_bounds_json, the training actions' range at that step (goal_planner --sampling data)
+#                 action_bounds_json, the training actions' range at that step (goal_planner --sampling data), and
+#                 action_codebook_json, the categorical planner's action set (goal_planner --sampling cat)
 #   config.yaml   the training config (the server reads the model shape from it)
 #   MANIFEST.json sources, sha256 of every file, and the command to start the server
 # --goals_only rewrites goals.npz (and the manifest) of an existing bundle and leaves weights.pt as it is.
@@ -33,7 +34,7 @@ import numpy as np
 import torch
 import yaml
 
-from app.vjepa_hanoi.action_bounds import action_bounds
+from app.vjepa_hanoi.action_bounds import action_bounds, action_codebook
 from app.vjepa_hanoi.hanoi import step_rows
 from app.vjepa_hanoi.paper_protocol_eval import goal_rows, goal_stages, moves, time_schedule
 
@@ -124,6 +125,7 @@ def main():
         step_rows=np.array(fstp),
         goal_archive=np.array(os.path.abspath(args.goal_archive)),
         action_bounds_json=np.array(json.dumps(action_bounds(args.goal_archive, cfg["data"].get("fps", 4)))),
+        action_codebook_json=np.array(json.dumps(action_codebook(args.goal_archive, cfg["data"].get("fps", 4)))),
     )
     shutil.copyfile(args.fname, os.path.join(args.out, "config.yaml"))
     files = {f: sha256(os.path.join(args.out, f)) for f in ("weights.pt", "goals.npz", "config.yaml")}

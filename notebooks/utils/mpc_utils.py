@@ -206,6 +206,84 @@ def cem(
     return new_action
 
 
+def cem_categorical(
+    context_frame,
+    context_pose,
+    goal_frame,
+    world_model,
+    codebook,
+    code_prior=None,
+    rollout=1,
+    samples=800,
+    cem_steps=10,
+    topk=10,
+    alpha=0.7,
+    prior_temp=0.5,
+    max_enumerate=4096,
+    objective=l1,
+    axis={},
+    close_gripper=None,
+    gripper_feasible=True,
+    **unused,
+):
+    """
+    Planning over a finite action set (not part of the V-JEPA 2 code; added for the Hanoi planner tests).
+    codebook: [K, 4] rows [dx, dy, dz, gripper]. Every planned step is one of these codes, so the world model is only
+    queried with actions shaped like its training actions.
+    - If K ** rollout <= max_enumerate, every code sequence is scored (exact search).
+    - Otherwise categorical CEM: per step a distribution over codes, initialised from code_prior ** prior_temp
+      (0: uniform; 1: the codes' training frequencies), updated toward the top-k elite frequencies
+      (p <- (1 - alpha) p + alpha f), with the current mode kept as sample 0.
+    axis (held dims), close_gripper (held closed from step h) and gripper_feasible (change within [-c, 1 - c] of the
+    imagined closedness c) are applied to each code as in cem. Returns the best-scoring sequence [1, rollout, 7].
+    """
+    dev = context_frame.device
+    codes = torch.as_tensor(codebook, dtype=torch.float32, device=dev)
+    K = codes.size(0)
+
+    def score(idx):
+        n = idx.size(0)
+        frames, poses, acts = context_frame.repeat(n, 1, 1, 1), context_pose.repeat(n, 1, 1), None
+        for h in range(rollout):
+            a = codes[idx[:, h]].clone()
+            for ax in axis.keys():
+                a[:, ax] = axis[ax]
+            c = poses[:, -1, -1].to(a.dtype)
+            if gripper_feasible:
+                a[:, 3] = torch.minimum(torch.maximum(a[:, 3], -c), 1.0 - c)
+            if close_gripper is not None and h >= close_gripper:
+                a[:, 3] = (1.0 - c) if gripper_feasible else 1.0
+            a = torch.cat([a[:, :3], torch.zeros((n, 3), device=dev), a[:, 3:]], dim=-1)[:, None]
+            acts = a if acts is None else torch.cat([acts, a], dim=1)
+            next_frame, next_pose = world_model(frames, acts, poses)
+            frames, poses = torch.cat([frames, next_frame], dim=1), torch.cat([poses, next_pose], dim=1)
+        return objective(frames[:, -1].flatten(1), goal_frame.flatten(1)).float(), acts
+
+    def score_chunked(idx):
+        out = [score(chunk) for chunk in idx.split(samples)]
+        return torch.cat([e for e, _ in out]), torch.cat([a for _, a in out])
+
+    if K**rollout <= max_enumerate:
+        grids = torch.meshgrid(*[torch.arange(K, device=dev)] * rollout, indexing="ij")
+        energy, acts = score_chunked(torch.stack([g.reshape(-1) for g in grids], dim=1))
+        return acts[energy.argmin()][None]
+
+    prior = torch.ones(K, device=dev) if code_prior is None else torch.as_tensor(code_prior, device=dev).float()
+    p = (prior.clamp_min(1e-8) ** prior_temp).expand(rollout, K).clone()
+    p /= p.sum(-1, keepdim=True)
+    best_e, best_a = float("inf"), None
+    for _ in range(cem_steps):
+        idx = torch.stack([torch.multinomial(p[h], samples, replacement=True) for h in range(rollout)], dim=1)
+        idx[0] = p.argmax(-1)
+        energy, acts = score(idx)
+        if float(energy.min()) < best_e:
+            best_e, best_a = float(energy.min()), acts[energy.argmin()]
+        elite = idx[energy.topk(topk, largest=False).indices]  # [topk, rollout]
+        freq = torch.nn.functional.one_hot(elite, K).float().mean(0)  # [rollout, K]
+        p = (1.0 - alpha) * p + alpha * freq
+    return best_a[None]
+
+
 def compute_new_pose(pose, action):
     """
     :param pose: [B, T=1, 7]
