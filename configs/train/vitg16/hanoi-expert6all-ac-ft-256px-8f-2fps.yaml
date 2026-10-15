@@ -2,7 +2,7 @@
 # fps 2 the expert's steps are at most 48 mm (fps 1: 83 mm), so the categorical planner's codes nearly all fit the arm's
 # 36 mm step rule (robot_io: a step moves in at most 1.0 s at 36 mm/s) without changing it; the descend from the hover
 # is about 3 steps. Everything else as A-expert6all-1fps (official released init, state token, all expert moves of the
-# six tasks, validation/test on the first-move split, 25 epochs x 300 steps x 32 clips).
+# six tasks, validation/test on the first-move split, 300 steps x 32 clips per epoch) except 15 epochs, not 25.
 # Launch: sbatch --export=ALL,CONFIG=configs/train/vitg16/hanoi-expert6all-ac-ft-256px-8f-2fps.yaml app/vjepa_hanoi/train.sbatch
 app: vjepa_hanoi
 folder: /scratch/cw5167/checkpoints/vjepa2_ac_hanoi/A_expert6all_2fps_vitg_finetune_v1
@@ -59,7 +59,7 @@ model:
   use_extrinsics: false
   use_rope: true
 optimization:                 # as the play and expert runs: 15k steps x 32 clips (~40 passes over 11,940 clips)
-  epochs: 25
+  epochs: 15                  # 15 (not 25 as A-expert6all-1fps) to finish inside the 10 h test
   ipe: 300
   warmup: 2
   anneal: 5                   # was 10
