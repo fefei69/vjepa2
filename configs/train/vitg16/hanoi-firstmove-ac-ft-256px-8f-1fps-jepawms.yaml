@@ -70,10 +70,10 @@ model:
   use_state: false            # the corrected model has no state token (proprio_tokens 0)
   use_rope: true
 optimization:                 # as the play and expert runs: 15k steps x 32 clips (~40 passes over 11,940 clips)
-  epochs: 50
+  epochs: 15                  # 2026-10-15: was 50 (A-firstmove's validation was best at epoch 5, then rose)
   ipe: 300
   warmup: 2
-  anneal: 10
+  anneal: 5                   # was 10
   lr: 0.0001
   start_lr: 0.00002
   final_lr: 0.0
