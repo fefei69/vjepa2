@@ -230,6 +230,7 @@ def main():
         args.tower_hanoi = os.environ.get("TOWER_HANOI", os.path.expanduser("~/ws/tower_hanoi"))
     if args.dry_run and not args.replay:
         p.error("--dry-run needs --replay <recording.h5>")
+    os.makedirs(os.path.dirname(os.path.abspath(args.log)), exist_ok=True)  # the log is saved only at the end
     if not args.save_goal_image:  # the move-time rule (robot_io.step_goal_time) holds 36 mm/s only up to 36 mm steps
         with urllib.request.urlopen(args.server + "/health", timeout=30) as resp:
             health = json.loads(resp.read())

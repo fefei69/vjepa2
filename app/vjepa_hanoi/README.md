@@ -94,6 +94,49 @@ Results go to `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/goal_distance/`.
    success logic: check the board afterwards.
 3. Rehearse with `--dry-run --replay <recording.h5>`.
 
+### H15 on the robot machine (play or expert model, no cluster)
+
+This is the published baseline: one goal image (the final board), the repo's default planner, fps 4. It uses no
+subgoals, no categorical planner and no guard. Two bundles exist on the cluster, exported by
+`robot_results/2026-10-13/cluster_offline/tools/export.sbatch`:
+- `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_play`: the official model fine-tuned on the H15 play data
+  (A, `A_vitg_finetune_v1`);
+- `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_expert`: the official model fine-tuned on the six-task
+  expert data (A-expert, `A_expert6_vitg_finetune_v1`).
+
+`MODEL=cplay` / `MODEL=cexpert` export the predictor-from-scratch models (C) the same way. Each bundle holds the goal
+frame of every board that ends a training move, including AAAA, BBBB and CCCC.
+
+1. Copy a bundle (5.3 GB):
+   ```bash
+   rsync -avP cw5167@login.torch.hpc.nyu.edu:/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_expert/ ~/vjepa_bundle_expert/
+   ```
+2. Terminal 1, the server (vjepa2's torch environment). The default planner is horizon 2 with 400 samples, so on the
+   16 GB GPU it needs `--predictor_chunk 100`:
+   ```bash
+   cd /home/cpw/workspace/vjepa2
+   PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python -m app.vjepa_hanoi.goal_planner \
+       --fname ~/vjepa_bundle_expert/config.yaml --checkpoint ~/vjepa_bundle_expert/weights.pt \
+       --goal_bundle ~/vjepa_bundle_expert/goals.npz --predictor_chunk 100
+   ```
+3. Terminal 2, the runner (tower_hanoi's environment, not conda). Example: AAAA → CCCC, a 15-move task:
+   ```bash
+   conda deactivate
+   source /opt/ros/jazzy/setup.bash
+   cd /home/cpw/workspace/vjepa2
+   EXECUTE=1 PYTHONPATH=/home/cpw/workspace/tower_hanoi:/home/cpw/workspace/vjepa2:$PYTHONPATH \
+     uv run --project /home/cpw/workspace/tower_hanoi --extra robot --extra ros \
+     python -m app.vjepa_hanoi.arm_goal_client --execute --start AAAA --goal-board CCCC --steps 120 \
+     --log runs/h15/expert_AAAA_CCCC.npz --tower-hanoi /home/cpw/workspace/tower_hanoi
+   ```
+   - The six H15 tasks are AAAA → BBBB / CCCC, BBBB → AAAA / CCCC and CCCC → AAAA / BBBB.
+   - Set `--steps` yourself. Each step plans for about as long as the paper protocol's 25 s on the RTX 5080, or
+     longer. The default budget, 2 × 15 moves × 120 steps = 3,600 steps, would take more than a day. `--steps 120` is
+     one game move of expert time (32 s of motion), roughly an hour.
+   - The runner parks at the start pose, then plans and moves until the budget is used. It has no success detector:
+     check the board afterwards. Every step goes to `--log`.
+   - For the play model, use `~/vjepa_bundle_play` in step 2.
+
 ## Six-task expert data
 
 `build_expert_archive.py` rebuilds the Cosmos six-task split into the archive format above:
