@@ -1,5 +1,5 @@
-# Closed-loop descend + grasp + lift on recorded frames (no robot, no simulator), from the hover of each held-out
-# first move:
+# Closed-loop descend + grasp + lift (--until release: + transit, insert, release) on recorded frames (no robot, no
+# simulator), from the hover of each held-out first move:
 #
 #   python descent_replay.py --fname <config> --checkpoint <best.pt> --settings cat_stages_h1,stages_h1 --out <json>
 #
@@ -8,7 +8,7 @@
 # goal frames and their time schedule are the arm server's (the first complete training demo of the same transition;
 # the per-transition medians counted from the hover). "Executed" here means: the pose is moved by the planned xyz
 # step (the gripper becomes closed or open as the arm's gripper_intent, closedness > 0.5), and the next image is the
-# held-out demo's recorded frame (30 Hz, every raw row of stages 2-6) nearest to the new tool position among the frames
+# held-out demo's recorded frame (30 Hz, every raw row of stages 2-6, or 2-8) nearest to the new tool position among the frames
 # with the same gripper state. So the planner sees the consequence of its own steps as long as it stays on the expert's
 # path; a case stops (and is reported) when that is no longer true:
 #   off path        nearest recorded frame > --max_snap_mm away (e.g. moved sideways near the rods)
@@ -73,17 +73,25 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
 }
 
 
-def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_mm=15.0, box=None, exec_cap_m=None):
+def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_mm=15.0, box=None, exec_cap_m=None,
+                until="lift"):
     """One held-out move from its hover (header). plan_step(raw row of the shown frame, 7-D pose, goal index) -> the
     planned 7-D action. box (lo, hi): the executed position is clamped into it, then a step longer than exec_cap_m
-    is scaled down to it, as goal_planner does (--max_speed x the model step)."""
-    rows = m["rows"][(m["stages"] >= 2) & (m["stages"] <= 6)]
-    rows = np.arange(rows.min(), rows.max() + 1)  # every raw row of the approach .. transit
+    is scaled down to it, as goal_planner does (--max_speed x the model step). until "lift": success = a valid grasp
+    lifted 30 mm; "release": success = a valid grasp opened again within 10 mm (5 mm laterally) of the demo's release
+    pose on the target peg (any other open after a grasp is "dropped")."""
+    last_stage = 6 if until == "lift" else 8
+    rows = m["rows"][(m["stages"] >= 2) & (m["stages"] <= last_stage)]
+    rows = np.arange(rows.min(), rows.max() + 1)  # every raw row of the approach .. transit (or release)
     st = hanoi_states(h["state"][rows].astype(np.float64), np.repeat(h["proprio"][rows, 6][:, None], 8, 1))
     closed_rec = st[:, 6] > 0.5
-    grasp_xyz = st[int(np.argmax(closed_rec)), :3]  # the demo's first closed row
+    first_closed = int(np.argmax(closed_rec))
+    grasp_xyz = st[first_closed, :3]  # the demo's first closed row
+    reopen = np.nonzero(~closed_rec[first_closed:])[0]
+    release_xyz = st[first_closed + int(reopen[0]), :3] if len(reopen) else None  # first open row after the grasp
     hover_row = int(m["rows"][m["stages"] == 2].max())
-    expert_steps = (int(m["rows"][m["stages"] == 5].max()) - hover_row) / fstp
+    expert_steps = (int(m["rows"][m["stages"] == (5 if until == "lift" else 8)].max()) - hover_row) / fstp
+    lifted_at = None
     i = int(np.nonzero(rows == hover_row)[0][0])
     xyz, closed = st[i, :3].copy(), bool(closed_rec[i])
     n_goals = len(gstages)
@@ -115,6 +123,13 @@ def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_m
                 break
             grasped = abs(dzg) <= 10 and latg <= 5
         if closed and not now_closed:
+            if until == "release" and grasped and release_xyz is not None:
+                dzr = abs(s7[2] - release_xyz[2]) * 1e3
+                latr = float(np.linalg.norm(s7[:2] - release_xyz[:2])) * 1e3
+                close_at |= {"release_k": k, "release_dz_mm": round(float(dzr), 1), "release_lat_mm": round(latr, 1)}
+                if dzr <= 10 and latr <= 5:
+                    outcome = "success"
+                    break
             outcome = "dropped" if grasped else "reopened"
             break
         new = xyz + a[:3] if box is None else np.clip(xyz + a[:3], box[0], box[1])
@@ -126,10 +141,13 @@ def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_m
         xyz = new
         lowest = min(lowest, xyz[2])
         closed = now_closed
-        if closed and grasped and xyz[2] - grasp_xyz[2] >= 0.030:
-            outcome = "success"
-            break
-    return {"outcome": outcome or "timeout", "steps": len(log), "expert_steps_hover_to_lift_end": expert_steps,
+        if closed and grasped and xyz[2] - grasp_xyz[2] >= 0.030 and lifted_at is None:
+            lifted_at = k
+            if until == "lift":
+                outcome = "success"
+                break
+    return {"outcome": outcome or "timeout", "steps": len(log), "until": until, "lifted_at": lifted_at,
+            "expert_steps_from_hover": expert_steps,
             "close": close_at, "lowest_below_grasp_mm": round(float(lowest - grasp_xyz[2]) * 1e3, 1), "log": log}
 
 
@@ -141,7 +159,9 @@ def main():
     p.add_argument("--goal_archive", default=f"{K}/train.npz")
     p.add_argument("--settings", default="base_h1,cat_stages_h1")
     p.add_argument("--max_snap_mm", type=float, default=15.0)
-    p.add_argument("--max_steps", type=float, default=3.0, help="x the expert's steps from the hover to the lift end")
+    p.add_argument("--max_steps", type=float, default=3.0,
+                   help="x the expert's steps from the hover to the lift end (--until release: to the release end)")
+    p.add_argument("--until", choices=("lift", "release"), default="lift")
     p.add_argument("--out", required=True)
     args = p.parse_args()
 
@@ -224,11 +244,11 @@ def main():
 
             cap = aid.get("exec_cap_mm")
             case = replay_case(m, h, fstp, reach, gstages, plan_step, args.max_steps, args.max_snap_mm, box,
-                               None if cap is None else cap / 1e3)
+                               None if cap is None else cap / 1e3, args.until)
             h.close()
             cases.append({"transition": m["transition"]} | case)
             print(f"{name} {m['transition']}: {case['outcome']} in {case['steps']} steps "
-                  f"(expert {case['expert_steps_hover_to_lift_end']:.1f}), close {case['close']}, "
+                  f"(expert {case['expert_steps_from_hover']:.1f}), close {case['close']}, "
                   f"lowest {case['lowest_below_grasp_mm']:+.1f} mm vs grasp", flush=True)  # fmt: skip
         n_ok = sum(c["outcome"] == "success" for c in cases)
         print(f"== {name}: success {n_ok}/{len(cases)} ({(time.time() - t0) / 60:.1f} min)", flush=True)

@@ -31,7 +31,8 @@
 #                                                        descent_replay's loop -> replay/smoke_<TAG>.json
 #   sbatch --export=ALL,TASK=replay,MODEL=fps1,SETTINGS="base_h1 cat_stages_h1" <this file>
 #                                                        descent_replay.py: closed loop from the hover on recorded frames
-#                                                        (its own setting names); -> replay/<model>_replay[_$TAG].json
+#                                                        (its own setting names; REPLAY_ARGS="--until release" for the
+#                                                        whole move); -> replay/<model>_replay[_$TAG].json
 set -uo pipefail  # one failing setting does not stop the others
 REPO=/scratch/cw5167/workspace/vjepa2
 K=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi
@@ -123,7 +124,7 @@ elif [ "${TASK}" = replay ]; then  # closed loop on recorded frames from the hov
   mkdir -p "$OUT/replay"
   for m in ${MODELS}; do
     model "$m"
-    "$PY" "$OUT/tools/descent_replay.py" --fname "$CFG" --checkpoint "$CKPT" --settings "${SETTINGS// /,}" --max_steps 2 \
+    "$PY" "$OUT/tools/descent_replay.py" --fname "$CFG" --checkpoint "$CKPT" --settings "${SETTINGS// /,}" --max_steps 2 ${REPLAY_ARGS:-} \
       --out "$OUT/replay/${m}_replay${TAG:+_$TAG}.json" 2>&1 | grep -v Warning
   done
 elif [ "${TASK}" = smoke ]; then  # the planning server class from a bundle in the same closed loop (server_smoke.py)
