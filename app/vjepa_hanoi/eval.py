@@ -68,6 +68,7 @@ def build_models(cfg, device):
         action_embed_dim=m.get("action_embed_dim", 7),
         pred_is_frame_causal=m.get("pred_is_frame_causal", True),
         use_extrinsics=m.get("use_extrinsics", False),
+        use_state=m.get("use_state", True),
         use_sdpa=meta.get("use_sdpa", False),
         use_silu=m.get("use_silu", False),
         use_pred_silu=m.get("use_pred_silu", False),

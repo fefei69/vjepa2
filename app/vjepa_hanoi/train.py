@@ -28,6 +28,7 @@ from app.vjepa_droid.transforms import make_transforms
 from app.vjepa_droid.utils import init_opt, init_video_model, load_checkpoint, load_pretrained
 from app.vjepa_hanoi.ac_step import encode_clips, l1_loss, predict
 from app.vjepa_hanoi.hanoi import init_data, init_eval_data
+from app.vjepa_hanoi.jepawms_init import load_jepawms_init
 from src.utils.distributed import AllReduceSum, init_distributed
 from src.utils.logging import AverageMeter, CSVLogger, get_logger, gpu_timer
 
@@ -59,6 +60,8 @@ def main(args, resume_preempt=False):
     r_file = cfgs_meta.get("resume_checkpoint", None)
     p_file = cfgs_meta.get("pretrain_checkpoint", None)
     load_predictor = cfgs_meta.get("load_predictor", False)
+    # JEPA-WMs corrected V-JEPA 2-AC predictor (app/vjepa_hanoi/jepawms_init.py); None: the official start
+    jepawms_predictor = cfgs_meta.get("jepawms_predictor_checkpoint", None)
     context_encoder_key = cfgs_meta.get("context_encoder_key", "encoder")
     target_encoder_key = cfgs_meta.get("target_encoder_key", "target_encoder")
     load_encoder = cfgs_meta.get("load_encoder", True)
@@ -96,6 +99,7 @@ def main(args, resume_preempt=False):
     use_pred_silu = cfgs_model.get("use_pred_silu", False)
     wide_silu = cfgs_model.get("wide_silu", True)
     use_extrinsics = cfgs_model.get("use_extrinsics", False)
+    use_state = cfgs_model.get("use_state", True)  # false: no state token (JEPA-WMs corrected init)
     action_embed_dim = cfgs_model.get("action_embed_dim", 7)
     model_max_num_frames = cfgs_model.get("max_num_frames", 64)  # sizes the predictor's causal mask only
 
@@ -207,6 +211,7 @@ def main(args, resume_preempt=False):
         action_embed_dim=action_embed_dim,
         pred_is_frame_causal=pred_is_frame_causal,
         use_extrinsics=use_extrinsics,
+        use_state=use_state,
         use_sdpa=use_sdpa,
         use_silu=use_silu,
         use_pred_silu=use_pred_silu,
@@ -301,16 +306,22 @@ def main(args, resume_preempt=False):
         p.requires_grad = False
 
     # -- looad pretrained weights
-    encoder, predictor, target_encoder = load_pretrained(
-        r_path=p_file,
-        encoder=encoder,
-        predictor=predictor,
-        context_encoder_key=context_encoder_key,
-        target_encoder_key=target_encoder_key,
-        target_encoder=target_encoder,
-        load_predictor=load_predictor,
-        load_encoder=load_encoder,
-    )
+    if jepawms_predictor:  # strict: encoders <- p_file[context_encoder_key], predictor <- the JEPA-WMs file
+        assert context_encoder_key == target_encoder_key and load_encoder and not load_predictor, "see jepawms_init.py"
+        encoder, target_encoder, predictor = load_jepawms_init(
+            encoder, target_encoder, predictor, p_file, context_encoder_key, jepawms_predictor
+        )
+    else:
+        encoder, predictor, target_encoder = load_pretrained(
+            r_path=p_file,
+            encoder=encoder,
+            predictor=predictor,
+            context_encoder_key=context_encoder_key,
+            target_encoder_key=target_encoder_key,
+            target_encoder=target_encoder,
+            load_predictor=load_predictor,
+            load_encoder=load_encoder,
+        )
 
     start_epoch = 0
     # -- load training checkpoint

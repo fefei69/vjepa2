@@ -43,16 +43,22 @@ class VisionTransformerPredictorAC(nn.Module):
         use_rope=True,
         action_embed_dim=7,
         use_extrinsics=False,
+        use_state=True,
         **kwargs
     ):
         super().__init__()
         self.is_frame_causal = is_frame_causal
         self.use_extrinsics = use_extrinsics
+        # use_state=False: no state token, per-frame tokens [a, (e,) x], as the JEPA-WMs V-JEPA 2-AC retrained
+        # without proprioception (jepa-wms src/models/ac_predictor.py, proprio_tokens=0); states are then ignored
+        self.use_state = use_state
+        self.cond_tokens = 1 + int(use_state) + int(use_extrinsics)
 
         # Map input to predictor dimension
         self.predictor_embed = nn.Linear(embed_dim, predictor_embed_dim, bias=True)
         self.action_encoder = nn.Linear(action_embed_dim, predictor_embed_dim, bias=True)
-        self.state_encoder = nn.Linear(action_embed_dim, predictor_embed_dim, bias=True)
+        if use_state:
+            self.state_encoder = nn.Linear(action_embed_dim, predictor_embed_dim, bias=True)
         self.extrinsics_encoder = nn.Linear(action_embed_dim - 1, predictor_embed_dim, bias=True)
 
         # Determine positional embedding
@@ -112,7 +118,7 @@ class VisionTransformerPredictorAC(nn.Module):
             grid_height = self.img_height // self.patch_size
             grid_width = self.img_width // self.patch_size
             attn_mask = build_action_block_causal_attention_mask(
-                grid_depth, grid_height, grid_width, add_tokens=3 if use_extrinsics else 2
+                grid_depth, grid_height, grid_width, add_tokens=self.cond_tokens
             )
         self.attn_mask = attn_mask
 
@@ -143,7 +149,12 @@ class VisionTransformerPredictorAC(nn.Module):
         T = N_ctxt // (self.grid_height * self.grid_width)
 
         # Interleave action tokens
-        s = self.state_encoder(states).unsqueeze(2)
+        if self.use_state:
+            s = self.state_encoder(states).unsqueeze(2)
+        else:
+            # as JEPA-WMs: an empty float32 state slot. Under bf16 autocast the cat below then promotes the token
+            # sequence, and with it the residual stream of every block, to float32, which is how their predictor trained
+            s = torch.zeros(B, T, 0, D, device=x.device)
         a = self.action_encoder(actions).unsqueeze(2)
         x = x.view(B, T, self.grid_height * self.grid_width, D)  # [B, T, H*W, D]
         if self.use_extrinsics:
@@ -152,7 +163,7 @@ class VisionTransformerPredictorAC(nn.Module):
         else:
             x = torch.cat([a, s, x], dim=2).flatten(1, 2)  # [B, T*(H*W+2), D]
 
-        cond_tokens = 3 if self.use_extrinsics else 2
+        cond_tokens = self.cond_tokens
         attn_mask = self.attn_mask[: x.size(1), : x.size(1)].to(x.device, non_blocking=True)
 
         # Fwd prop
