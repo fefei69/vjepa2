@@ -70,7 +70,9 @@ _OFF = {"fix_x": False, "hold_grasp": False, "hold_open": False, "hold_xy": Fals
 VARIANTS = {  # every server option, so /goal echoes them exactly; see robot_results/2026-10-13/cluster_offline
     "faithful": _OFF,  # paper baseline (with the server's default --rollout 1)
     "hold": _OFF | {"hold_grasp": True},  # task aid
-    "stages": _OFF | {"subgoals": "stages"},  # planner deviation: one goal per motion stage (use --rollout 3)
+    "stages": _OFF | {"subgoals": "stages"},  # planner deviation: one goal per motion stage (continuous CEM: use
+    # --rollout 3; a categorical server, --sampling cat --guard_floor_mm 166.13: the default --rollout 1, see
+    # robot_results/2026-10-13/cluster_offline/RESULTS_2026-10-15.md)
     "stages_xy": _OFF | {"subgoals": "stages", "hold_xy": True, "hold_grasp": True},  # + task aids
     "stages_open_xy": _OFF | {"subgoals": "stages", "hold_open": True, "hold_xy": True, "hold_grasp": True},
 }
