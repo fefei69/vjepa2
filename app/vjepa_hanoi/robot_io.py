@@ -78,6 +78,20 @@ class ReplayCamera:
         return self.f["state"][self.row].astype(float), float(self.f["proprio"][self.row, 6])
 
 
+def low_floor_of(workspace):
+    """Q-WM's low floor: transit z - 25 mm (the low-lateral guard and the retreat's jaw rule use it)."""
+    return float(workspace.transit_z) - LOW_FLOOR_BELOW_TRANSIT_M
+
+
+def workspace_low_floor(tower_hanoi):
+    """low_floor_of the workspace in <tower_hanoi>/robot/config, without connecting to the arm (for checks that
+    must run before any motion, e.g. against goal_planner --guard_floor_mm)."""
+    from robot.geometry import Workspace
+
+    with open(os.path.join(tower_hanoi, "robot", "config", "workspace.json")) as fh:
+        return low_floor_of(Workspace(json.load(fh)))
+
+
 class Robot:
     """Real hardware through tower_hanoi, or DryRunArm + ReplayCamera."""
 
@@ -120,7 +134,7 @@ class Robot:
                 )
             self.arm = arm_module.TrossenArm(self.workspace, args.address)
         self.check_grip = arm_module.check_grip
-        self.low_floor = float(self.workspace.transit_z) - LOW_FLOOR_BELOW_TRANSIT_M
+        self.low_floor = low_floor_of(self.workspace)
         self.config = {"workspace_json": os.path.join(config_dir, "workspace.json"),
                        "open_command": self.workspace.open_command, "grip_force": self.workspace.grip_force,
                        "low_floor": self.low_floor}  # fmt: skip

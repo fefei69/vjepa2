@@ -62,7 +62,8 @@ import zlib
 import numpy as np
 
 from app.vjepa_hanoi.arm_goal_client import EXECUTE_HELP, new_log, post, require_execute, run_steps, save_log
-from app.vjepa_hanoi.robot_io import RECORDED_OPEN_COMMAND, SPEED_CAP_M_S, START_POSE, STEP_SLOW_S, Robot
+from app.vjepa_hanoi.robot_io import (RECORDED_OPEN_COMMAND, SPEED_CAP_M_S, START_POSE, STEP_SLOW_S, Robot,
+                                      workspace_low_floor)  # fmt: skip
 
 BOARDS = ["".join(b) for b in itertools.product("ABC", repeat=4)]  # board_indices order, ring 1 first
 CASES = ["AAAA>BAAA", "AAAA>CAAA", "BBBB>ABBB", "BBBB>CBBB", "CCCC>ACCC", "CCCC>BCCC"]
@@ -208,6 +209,13 @@ def main():
                 f"36 mm/s only up to {SPEED_CAP_M_S * STEP_SLOW_S * 1e3:.0f} mm: use the default --max_speed 0.10"
                 + ("" if step_rows == 8 else f" with an fps-4 model (this model's step is {step_rows} rows; a longer "
                    "step needs a longer move time, which robot_io does not do yet)"))  # fmt: skip
+    server_floor = (health.get("planner") or {}).get("low_floor")  # goal_planner --guard_floor_mm
+    if server_floor is not None:  # the planner must avoid this arm's low-lateral guard, not another arm's
+        floor = workspace_low_floor(args.tower_hanoi)
+        if abs(float(server_floor) - floor) > 1e-3:
+            p.error(f"the server plans with a low floor of {float(server_floor) * 1e3:.2f} mm "
+                    f"(--guard_floor_mm) but this arm's is {floor * 1e3:.2f} mm (robot_io: transit_z - 25 mm); "
+                    f"restart it with --guard_floor_mm {floor * 1e3:.2f}")  # fmt: skip
     print(f"server: {health.get('checkpoint')} | protocol {health['protocol']} | planner {health['planner']} | model "
           f"step {step_rows} rows ({step_rows / 30:.3f} s)")  # fmt: skip
 

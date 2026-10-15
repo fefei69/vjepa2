@@ -42,7 +42,8 @@ from collections import deque
 
 import numpy as np
 
-from app.vjepa_hanoi.robot_io import SPEED_CAP_M_S, START_POSE, STEP_S, STEP_SLOW_S, Robot, step_goal_time
+from app.vjepa_hanoi.robot_io import (SPEED_CAP_M_S, START_POSE, STEP_S, STEP_SLOW_S, Robot, step_goal_time,
+                                      workspace_low_floor)  # fmt: skip
 
 EXECUTE_HELP = "real arm only: required, together with the environment variable EXECUTE=1 (run by the operator)"
 
@@ -236,6 +237,13 @@ def main():
             p.error(f"the server allows {health['max_step_m'] * 1e3:.1f} mm steps (max_speed x a model step of "
                     f"{health.get('step_s', STEP_S):.3f} s); robot_io moves a step in at most {STEP_SLOW_S:.1f} s, so "
                     f"only steps up to {SPEED_CAP_M_S * STEP_SLOW_S * 1e3:.0f} mm stay under the proven 36 mm/s")
+        server_floor = (health.get("planner") or {}).get("low_floor")  # goal_planner --guard_floor_mm
+        if server_floor is not None:  # the planner must avoid this arm's low-lateral guard, not another arm's
+            floor = workspace_low_floor(args.tower_hanoi)
+            if abs(float(server_floor) - floor) > 1e-3:
+                p.error(f"the server plans with a low floor of {float(server_floor) * 1e3:.2f} mm "
+                        f"(--guard_floor_mm) but this arm's is {floor * 1e3:.2f} mm (robot_io: transit_z - 25 mm); "
+                        f"restart it with --guard_floor_mm {floor * 1e3:.2f}")  # fmt: skip
 
     robot = Robot(args)
     try:
