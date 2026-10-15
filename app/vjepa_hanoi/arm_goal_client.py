@@ -214,7 +214,8 @@ def main():
     p.add_argument("--save-goal-image", help="capture the current transformed frame to this .npy and exit")
     p.add_argument("--steps", type=int, default=None, help="step budget (overrides the default)")
     p.add_argument("--steps-per-move", type=int, default=120,
-                   help="~32 s per game move in fps-4 steps of 0.267 s (scaled to the server model's step)")
+                   help="fps-4 steps of 0.267 s per game move (32 s; the expert takes about 65, 17 s), scaled to the "
+                        "server model's step")  # fmt: skip
     p.add_argument("--log", default="vjepa_plain_run.npz")
     p.add_argument("--no-park", dest="no_park", action="store_true",
                    help="start from the current pose instead of opening the gripper and parking at the start pose")
@@ -230,7 +231,9 @@ def main():
         args.tower_hanoi = os.environ.get("TOWER_HANOI", os.path.expanduser("~/ws/tower_hanoi"))
     if args.dry_run and not args.replay:
         p.error("--dry-run needs --replay <recording.h5>")
-    os.makedirs(os.path.dirname(os.path.abspath(args.log)), exist_ok=True)  # the log is saved only at the end
+    if not args.save_goal_image and os.path.exists(args.log):  # the log is written once, at the end: never replace one
+        p.error(f"{args.log} exists (an earlier run's log); give a new --log")
+    os.makedirs(os.path.dirname(os.path.abspath(args.log)), exist_ok=True)
     if not args.save_goal_image:  # the move-time rule (robot_io.step_goal_time) holds 36 mm/s only up to 36 mm steps
         with urllib.request.urlopen(args.server + "/health", timeout=30) as resp:
             health = json.loads(resp.read())
@@ -266,6 +269,8 @@ def main():
                 if args.goal_image
                 else post(args.server, "/goal", goal_board=args.goal_board, **opts)
             )
+            if goal.get("protocol") != "plain":  # the reply names the server's planner; refuse before any motion
+                p.error(f"the server runs --protocol {goal.get('protocol')}; this run is --protocol plain")
             budget, switch = args.steps, []
             if budget is None:
                 if not (args.start and args.goal_board):
@@ -286,7 +291,9 @@ def main():
     finally:
         try:
             if "log" in locals() and log["pose"]:
-                save_log(args.log, log)
+                save_log(args.log, log, argv=sys.argv, goal=goal, budget=budget,
+                         server={k: health.get(k) for k in ("checkpoint", "goal_bundle", "goal_archive", "protocol",
+                                                            "planner", "max_step_m", "step_s")})  # fmt: skip
                 print(f"step log -> {args.log}")
         finally:
             robot.close()  # whatever the log save does

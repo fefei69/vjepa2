@@ -96,46 +96,61 @@ Results go to `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/goal_distance/`.
 
 ### H15 on the robot machine (play or expert model, no cluster)
 
-This is the published baseline: one goal image (the final board), the repo's default planner, fps 4. It uses no
-subgoals, no categorical planner and no guard. Two bundles exist on the cluster, exported by
-`robot_results/2026-10-13/cluster_offline/tools/export.sbatch`:
-- `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_play`: the official model fine-tuned on the H15 play data
-  (A, `A_vitg_finetune_v1`);
-- `/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_expert`: the official model fine-tuned on the six-task
-  expert data (A-expert, `A_expert6_vitg_finetune_v1`).
+This is the published baseline: one goal image (the final board), the repo's default planner (horizon 2, 400 samples,
+10 CEM iterations), fps 4. It uses no subgoals, no categorical planner and no planner-side constraint. Two bundles are
+on the cluster, exported by `robot_results/2026-10-13/cluster_offline/tools/export.sbatch`, with their goal images and
+workspace box from the model's own training data:
+- `robot_bundle_play`: the official model fine-tuned on the H15 play data (A, `A_vitg_finetune_v1`), 81 goal boards;
+- `robot_bundle_expert`: the official model fine-tuned on the six-task expert data (A-expert,
+  `A_expert6_vitg_finetune_v1`), 45 goal boards.
 
-`MODEL=cplay` / `MODEL=cexpert` export the predictor-from-scratch models (C) the same way. Each bundle holds the goal
-frame of every board that ends a training move, including AAAA, BBBB and CCCC.
+Both have AAAA, BBBB and CCCC. `MODEL=cplay` / `MODEL=cexpert` export the predictor-from-scratch models (C) the same
+way. A dry run of the expert bundle (server + `arm_goal_client --dry-run`, 3 steps toward CCCC) ran end to end.
 
-1. Copy a bundle (5.3 GB):
+1. Copy the bundles (5.3 GB each):
    ```bash
-   rsync -avP cw5167@login.torch.hpc.nyu.edu:/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_expert/ ~/vjepa_bundle_expert/
+   rsync -avhPr --append-verify \
+     cw5167@login.torch.hpc.nyu.edu:/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_expert/ \
+     ~/vjepa_bundle_expert/
+   rsync -avhPr --append-verify \
+     cw5167@login.torch.hpc.nyu.edu:/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_play/ \
+     ~/vjepa_bundle_play/
    ```
-2. Terminal 1, the server (vjepa2's torch environment). The default planner is horizon 2 with 400 samples, so on the
-   16 GB GPU it needs `--predictor_chunk 100`:
+2. Terminal 1, the server (vjepa2's torch environment). Pick the model with `M` (`expert` or `play`). On the 16 GB
+   GPU the default planner needs `--predictor_chunk 100`:
    ```bash
+   M=expert
    cd /home/cpw/workspace/vjepa2
    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python -m app.vjepa_hanoi.goal_planner \
-       --fname ~/vjepa_bundle_expert/config.yaml --checkpoint ~/vjepa_bundle_expert/weights.pt \
-       --goal_bundle ~/vjepa_bundle_expert/goals.npz --predictor_chunk 100
+       --fname ~/vjepa_bundle_$M/config.yaml --checkpoint ~/vjepa_bundle_$M/weights.pt \
+       --goal_bundle ~/vjepa_bundle_$M/goals.npz --predictor_chunk 100
    ```
 3. Terminal 2, the runner (tower_hanoi's environment, not conda). Example: AAAA → CCCC, a 15-move task:
    ```bash
    conda deactivate
    source /opt/ros/jazzy/setup.bash
    cd /home/cpw/workspace/vjepa2
+   M=expert
    EXECUTE=1 PYTHONPATH=/home/cpw/workspace/tower_hanoi:/home/cpw/workspace/vjepa2:$PYTHONPATH \
      uv run --project /home/cpw/workspace/tower_hanoi --extra robot --extra ros \
-     python -m app.vjepa_hanoi.arm_goal_client --execute --start AAAA --goal-board CCCC --steps 120 \
-     --log runs/h15/expert_AAAA_CCCC.npz --tower-hanoi /home/cpw/workspace/tower_hanoi
+     python -m app.vjepa_hanoi.arm_goal_client --execute --start AAAA --goal-board CCCC --steps 130 \
+     --log runs/h15/${M}_AAAA_CCCC_r1.npz --tower-hanoi /home/cpw/workspace/tower_hanoi
    ```
    - The six H15 tasks are AAAA → BBBB / CCCC, BBBB → AAAA / CCCC and CCCC → AAAA / BBBB.
-   - Set `--steps` yourself. Each step plans for about as long as the paper protocol's 25 s on the RTX 5080, or
-     longer. The default budget, 2 × 15 moves × 120 steps = 3,600 steps, would take more than a day. `--steps 120` is
-     one game move of expert time (32 s of motion), roughly an hour.
+   - **Time.** The expert takes about 65 model steps (17 s of motion) per game move, so a 15-move task is about 975
+     steps. This planner takes about 39 s per step on the RTX 5080 (horizon probe, `robot_results/2026-10-13/RESULTS.md`).
+     - `--steps 130` is twice the expert's first move: about 1.4 h.
+     - `--steps 975` is the expert's time for the whole task: about 10.5 h.
+     - The default budget (no `--steps`) is 2 × 15 moves × 120 steps = 3,600 steps, 3.7 times the expert's time:
+       about 39 h.
    - The runner parks at the start pose, then plans and moves until the budget is used. It has no success detector:
-     check the board afterwards. Every step goes to `--log`.
-   - For the play model, use `~/vjepa_bundle_play` in step 2.
+     check the board afterwards.
+   - Its abort-only checks stay on, as in every arm run, and can end a run early: a planned step more than 3 mm sideways
+     with an end below the low floor (166 mm), or a close below that height that grabs nothing. The arm then retreats;
+     the steps so far are kept.
+   - Every step goes to `--log`, with the server's checkpoint, planner and goal. A log is never overwritten: give each
+     run a new name (`_r2`, ...).
+   - The runner refuses a server that is not running the plain planner (e.g. one started with `--protocol paper`).
 
 ## Six-task expert data
 
