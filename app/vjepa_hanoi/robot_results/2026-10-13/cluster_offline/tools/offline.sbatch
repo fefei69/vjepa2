@@ -26,6 +26,9 @@
 #                                                        STRIDE=n evaluates rows n raw rows apart (default: one model
 #                                                        step at fps 4, 8 rows for the fps-1 models)
 #   sbatch --export=ALL,TASK=hover,MODEL=fps1 <this file> hover_probe only (for a model other than fps4)
+#   sbatch --export=ALL,TASK=smoke,BUNDLE=$K/robot_bundle_efps1,TAG=efps1_guard,FLAGS="--guard_floor_mm 166.13" <this file>
+#                                                        server_smoke.py: goal_planner.GoalPlanner from the bundle in
+#                                                        descent_replay's loop -> replay/smoke_<TAG>.json
 #   sbatch --export=ALL,TASK=replay,MODEL=fps1,SETTINGS="base_h1 cat_stages_h1" <this file>
 #                                                        descent_replay.py: closed loop from the hover on recorded frames
 #                                                        (its own setting names); -> replay/<model>_replay[_$TAG].json
@@ -123,6 +126,10 @@ elif [ "${TASK}" = replay ]; then  # closed loop on recorded frames from the hov
     "$PY" "$OUT/tools/descent_replay.py" --fname "$CFG" --checkpoint "$CKPT" --settings "${SETTINGS// /,}" --max_steps 2 \
       --out "$OUT/replay/${m}_replay${TAG:+_$TAG}.json" 2>&1 | grep -v Warning
   done
+elif [ "${TASK}" = smoke ]; then  # the planning server class from a bundle in the same closed loop (server_smoke.py)
+  mkdir -p "$OUT/replay"
+  "$PY" "$OUT/tools/server_smoke.py" --bundle "${BUNDLE:?set BUNDLE}" ${FLAGS:-} \
+    --out "$OUT/replay/smoke_${TAG:-server}.json" 2>&1 | grep -v Warning
 elif [ "${TASK}" = ppe ]; then
   EVAL="--eval_stages 3,4"; TAG=descent
   if [ "${ROWS:-descent}" = all ]; then EVAL=""; TAG=all; fi
