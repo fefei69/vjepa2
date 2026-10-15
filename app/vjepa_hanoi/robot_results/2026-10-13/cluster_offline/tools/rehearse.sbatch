@@ -24,15 +24,17 @@ export OMP_NUM_THREADS=4
 PY="$REPO/.venv/bin/python"
 B="${BUNDLE:?set BUNDLE}"
 OUT="$K/robot_rehearsal/session_${SLURM_JOB_ID}"
+PORT=$((20000 + SLURM_JOB_ID % 20000))  # one port per job: two rehearsals on one node must not share a server
 mkdir -p "$OUT"
 echo "job $SLURM_JOB_ID on $(hostname -s), commit $(git rev-parse --short HEAD); server flags: ${SERVER_FLAGS:-}; runner flags: ${RUNNER_FLAGS:-}"
 PYTHONPATH="$REPO" "$PY" -m app.vjepa_hanoi.goal_planner --fname "$B/config.yaml" --checkpoint "$B/weights.pt" \
-  --goal_bundle "$B/goals.npz" --protocol paper ${SERVER_FLAGS:-} --host 127.0.0.1 --port 8766 > "$OUT/server.log" 2>&1 &
+  --goal_bundle "$B/goals.npz" --protocol paper ${SERVER_FLAGS:-} --host 127.0.0.1 --port $PORT > "$OUT/server.log" 2>&1 &
 SERVER=$!
-for i in $(seq 1 120); do curl -s http://127.0.0.1:8766/health > "$OUT/health.json" 2>/dev/null && break; sleep 5; done
+for i in $(seq 1 120); do kill -0 "$SERVER" 2>/dev/null || { echo "server exited"; tail -5 "$OUT/server.log"; exit 1; }
+  curl -s http://127.0.0.1:$PORT/health > "$OUT/health.json" 2>/dev/null && break; sleep 5; done
 echo "health: $(head -c 600 "$OUT/health.json")"
 PYTHONPATH="$TH:$REPO" "$PY" -m app.vjepa_hanoi.one_move_test --dry-run --replay-archive "$K/data/expert6_first_move/test.npz" \
-  --yes --tower-hanoi "$TH" --out "$OUT/runs" ${RUNNER_FLAGS:-} 2>&1 | grep -v Warning
+  --yes --tower-hanoi "$TH" --server http://127.0.0.1:$PORT --out "$OUT/runs" ${RUNNER_FLAGS:-} 2>&1 | grep -v Warning
 echo "runner exit ${PIPESTATUS[0]}"
 kill "$SERVER"
 ls -la "$OUT/runs" 2>/dev/null | head -20
