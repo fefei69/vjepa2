@@ -1,0 +1,286 @@
+{
+ "goals": "stages",
+ "switch": "time",
+ "goal_source": "train",
+ "final_stage": 8,
+ "fix_x": false,
+ "hold_grasp": false,
+ "hold_open": false,
+ "hold_xy": false,
+ "eval_stages": "all",
+ "goal_frames": {
+  "1": "end of stage 3 (descend_source)",
+  "2": "end of stage 4 (grasp)",
+  "3": "end of stage 5 (lift)",
+  "4": "end of stage 6 (transit)",
+  "5": "end of stage 7 (insert_target)",
+  "6": "end of stage 8 (release)"
+ },
+ "schedule": "transition",
+ "time_schedule_reach_steps": [
+  13,
+  15,
+  20,
+  24,
+  28,
+  30
+ ],
+ "time_schedule_reach_steps_by_transition": {
+  "AAAA>BAAA": [
+   13,
+   15,
+   20,
+   24,
+   28,
+   30
+  ],
+  "CCCC>BCCC": [
+   13,
+   15,
+   20,
+   24,
+   28,
+   30
+  ],
+  "BBBB>CBBB": [
+   11,
+   14,
+   18,
+   22,
+   27,
+   29
+  ],
+  "CCCC>ACCC": [
+   13,
+   15,
+   20,
+   28,
+   32,
+   34
+  ],
+  "BBBB>ABBB": [
+   11,
+   14,
+   18,
+   22,
+   27,
+   29
+  ],
+  "AAAA>CAAA": [
+   13,
+   15,
+   20,
+   28,
+   32,
+   34
+  ]
+ },
+ "time_schedule_steps_per_goal": [
+  13,
+  2,
+  5,
+  4,
+  4,
+  2
+ ],
+ "step_rows": 15,
+ "row_stride": 15,
+ "step_s": 0.5,
+ "planner": {
+  "rollout": 1,
+  "samples": 800,
+  "topk": 10,
+  "cem_steps": 10,
+  "momentum_mean": 0.15,
+  "momentum_std": 0.15,
+  "maxnorm": 0.09375,
+  "source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1",
+  "objective": "l1",
+  "context_window": "all"
+ },
+ "protocol": "paper",
+ "sampling": "box",
+ "action_bounds": null,
+ "codebook": null,
+ "checkpoint": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/A_expert6all_2fps_vitg_finetune_v1/best.pt",
+ "archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/test.npz",
+ "goal_archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/train.npz",
+ "moves": {
+  "test": 6,
+  "test_incomplete_skipped": 0,
+  "test_without_training_exemplar": 0,
+  "train": 48,
+  "train_incomplete_skipped": 0,
+  "candidate_rows": 178
+ },
+ "switch_agreement_with_stage": 0.9325842696629213,
+ "overall": {
+  "rows": 178,
+  "goal_seconds_median": 1.6333333333333333,
+  "moving_rows": 105,
+  "direction_cos_median": 0.9698859011519363,
+  "direction_correct": 0.8380952380952381,
+  "direction_within_45deg": 0.7333333333333333,
+  "yz_err_over_zero_median": 1.72938593253171,
+  "gripper_events": 13,
+  "gripper_sign_accuracy": 1.0
+ },
+ "by_stage": {
+  "open": {
+   "rows": 12,
+   "goal_seconds_median": 5.833333333333333,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "approach_source": {
+   "rows": 38,
+   "goal_seconds_median": 3.8166666666666664,
+   "moving_rows": 22,
+   "direction_cos_median": -0.26660310267499754,
+   "direction_correct": 0.22727272727272727,
+   "direction_within_45deg": 0.09090909090909091,
+   "yz_err_over_zero_median": 6.682623843132999,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "descend_source": {
+   "rows": 24,
+   "goal_seconds_median": 1.2166666666666668,
+   "moving_rows": 19,
+   "direction_cos_median": 0.993507474021281,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.9473684210526315,
+   "yz_err_over_zero_median": 0.8761168112023077,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "grasp": {
+   "rows": 18,
+   "goal_seconds_median": 1.2333333333333334,
+   "moving_rows": 2,
+   "direction_cos_median": 0.9647544414168245,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 1.0,
+   "yz_err_over_zero_median": 17.487936705135574,
+   "gripper_events": 9,
+   "gripper_sign_accuracy": 1.0
+  },
+  "lift": {
+   "rows": 24,
+   "goal_seconds_median": 1.2333333333333334,
+   "moving_rows": 22,
+   "direction_cos_median": 0.97182245020309,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.9545454545454546,
+   "yz_err_over_zero_median": 1.0658481234618917,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "transit": {
+   "rows": 32,
+   "goal_seconds_median": 1.7333333333333334,
+   "moving_rows": 24,
+   "direction_cos_median": 0.8002357985059463,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.75,
+   "yz_err_over_zero_median": 2.3093508458428027,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "insert_target": {
+   "rows": 24,
+   "goal_seconds_median": 1.1333333333333333,
+   "moving_rows": 16,
+   "direction_cos_median": 0.9777027036911704,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 1.0,
+   "yz_err_over_zero_median": 0.9747159224355517,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "release": {
+   "rows": 6,
+   "goal_seconds_median": 0.6333333333333333,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 1.0
+  }
+ },
+ "by_goal": {
+  "goal_1": {
+   "rows": 72,
+   "goal_seconds_median": 3.3333333333333335,
+   "moving_rows": 41,
+   "direction_cos_median": 0.20318072555722705,
+   "direction_correct": 0.5853658536585366,
+   "direction_within_45deg": 0.4878048780487805,
+   "yz_err_over_zero_median": 4.787922058420815,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_2": {
+   "rows": 14,
+   "goal_seconds_median": 1.0333333333333334,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 9,
+   "gripper_sign_accuracy": 1.0
+  },
+  "goal_3": {
+   "rows": 28,
+   "goal_seconds_median": 1.3333333333333333,
+   "moving_rows": 24,
+   "direction_cos_median": 0.97182245020309,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.9583333333333334,
+   "yz_err_over_zero_median": 1.1262028315895067,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_4": {
+   "rows": 30,
+   "goal_seconds_median": 1.6333333333333333,
+   "moving_rows": 24,
+   "direction_cos_median": 0.8002357985059463,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.75,
+   "yz_err_over_zero_median": 2.3093508458428027,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_5": {
+   "rows": 24,
+   "goal_seconds_median": 1.4333333333333333,
+   "moving_rows": 16,
+   "direction_cos_median": 0.9777027036911704,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 1.0,
+   "yz_err_over_zero_median": 0.9747159224355517,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_6": {
+   "rows": 10,
+   "goal_seconds_median": 0.8333333333333334,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 1.0
+  }
+ }
+}
