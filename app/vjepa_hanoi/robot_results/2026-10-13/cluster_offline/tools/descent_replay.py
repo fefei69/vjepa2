@@ -77,6 +77,12 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
     "aid_cat_stages_guard_box_fixx_cap36_h1": ("stages", "cat", None,
                                                OFF | {"guard": True, "box": True, "fix_x": True, "exec_cap_mm": 36.0}),
     "aid_cat_stages_guard_fixx_h1": ("stages", "cat", None, OFF | {"guard": True, "fix_x": True}),
+    # the 36 mm cap with the time schedule stretched x2 (runner --schedule_scale 2): P
+    "cat_stages_guard_box_cap36_sched2_h1": ("stages", "cat", None,
+                                             OFF | {"guard": True, "box": True, "exec_cap_mm": 36.0, "sched_scale": 2.0}),
+    "cat_stages_guard_box_cap36_sched15_h1": ("stages", "cat", None,
+                                              OFF | {"guard": True, "box": True, "exec_cap_mm": 36.0, "sched_scale": 1.5}),
+    "cat_stages_guard_box_sched15_h1": ("stages", "cat", None, OFF | {"guard": True, "box": True, "sched_scale": 1.5}),
 }
 
 
@@ -237,6 +243,8 @@ def main():
             ex = same[0]  # goal frames: the first complete training demo of this transition (goal_planner's choice)
             ex_rows = goal_rows(ex, 8, gstages)
             reach = time_schedule(same, 8, gstages, fstp, "hover")
+            if aid.get("sched_scale"):  # each goal's steps x scale (rounded up): slower execution, same goals
+                reach = np.cumsum(np.ceil(np.diff([0] + reach) * aid["sched_scale"]).astype(int)).tolist()
             with h5py.File(train_paths[ex["file"]], "r") as h:
                 goal_z = [encode(h["pixels"][ex_rows[g]]) for g in range(1, n_goals + 1)]
             h = h5py.File(test_paths[m["file"]], "r")
