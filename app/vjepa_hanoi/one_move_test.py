@@ -143,6 +143,9 @@ def main():
     p.add_argument("--order", choices=("case", "variant"), default="case",
                    help="case: every variant of a case before the next case; variant: every case per variant")
     p.add_argument("--schedule", help="steps per goal for every case, e.g. 29,16,11 (default: the server's per case)")
+    p.add_argument("--schedule_scale", type=float, default=1.0,
+                   help="deviation, off by default: each goal's steps x this, rounded up (e.g. 1.5 for an fps-1 model "
+                        "whose steps the server caps at 36 mm, --max_speed 0.036; see RESULTS_2026-10-15.md)")
     p.add_argument("--resume", action="store_true", help="continue a session: skip runs already validly recorded")
     p.add_argument("--tower-hanoi", default=os.environ.get("TOWER_HANOI", os.path.expanduser("~/ws/tower_hanoi")))
     p.add_argument("--address", default="192.168.1.3")
@@ -282,6 +285,8 @@ def main():
                     else:
                         raise RuntimeError("a model with a non-fps-4 step needs the server's hover_schedule: "
                                            "re-export the bundle (export_robot_bundle --goals_only)")  # fmt: skip
+                if args.schedule_scale != 1.0 and schedule:  # slower execution: the same goals, more steps each
+                    schedule = [int(np.ceil(int(s) * args.schedule_scale - 1e-9)) for s in schedule]
                 if not schedule or len(schedule) != goal["n_goals"] or min(schedule) < 1:
                     raise RuntimeError(f"bad schedule {schedule} for {goal['n_goals']} goals")
                 switch, budget = [int(x) for x in np.cumsum(schedule)[:-1]], int(sum(schedule))

@@ -35,6 +35,8 @@ def main():
     p.add_argument("--fix_x", action="store_true")
     p.add_argument("--box_feasible", action="store_true")
     p.add_argument("--until", choices=("lift", "release"), default="lift")
+    p.add_argument("--schedule_scale", type=float, default=1.0, help="as one_move_test --schedule_scale")
+    p.add_argument("--max_steps", type=float, default=2.0, help="x the expert's steps")
     p.add_argument("--out", required=True)
     args = p.parse_args()
     b = args.bundle
@@ -47,7 +49,8 @@ def main():
     out = {"bundle": b, "args": vars(args), "max_step_m": planner.max_step, "cases": []}
     for m in test_moves:
         g = planner.set_goal(transition=m["transition"], subgoals="stages")
-        reach = np.cumsum(g["hover_schedule"]).tolist()
+        sched = [int(np.ceil(int(x) * args.schedule_scale - 1e-9)) for x in g["hover_schedule"]]  # one_move_test's rule
+        reach = np.cumsum(sched).tolist()
         h = h5py.File(test_paths[m["file"]], "r")
         last = {}
 
@@ -59,11 +62,12 @@ def main():
             a[:3] = np.asarray(r["executed_delta"])  # the server's executed step (box clamp + --max_speed cap)
             return a
 
-        case = replay_case(m, h, planner.fstp, reach, gstages, plan_step, 2.0, 15.0, until=args.until)
+        case = replay_case(m, h, planner.fstp, reach, gstages, plan_step, args.max_steps, 15.0, until=args.until)
         h.close()
         case["server_replies"] = [{k: v for k, v in r.items() if k in ("action", "executed_delta", "safety_scaled",
                                    "gripper_intent", "goal_index", "axis_held")} for r in last.values()]  # fmt: skip
-        out["cases"].append({"transition": m["transition"], "hover_schedule": g["hover_schedule"]} | case)
+        out["cases"].append({"transition": m["transition"], "hover_schedule": g["hover_schedule"], "schedule": sched}
+                            | case)  # fmt: skip
         print(f"{m['transition']}: {case['outcome']} in {case['steps']} steps, close {case['close']}, "
               f"scaled steps {sum(r['safety_scaled'] for r in last.values())}", flush=True)  # fmt: skip
     out["success"] = sum(c["outcome"] == "success" for c in out["cases"])
