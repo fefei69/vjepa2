@@ -1,0 +1,6019 @@
+{
+ "checkpoint": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/J_firstmove_1fps_vitg_finetune_v1/best.pt",
+ "fname": "configs/train/vitg16/hanoi-firstmove-ac-ft-256px-8f-1fps-jepawms.yaml",
+ "step_rows": 30,
+ "settings": {
+  "cat_stages_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 1,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70395,
+       "snap_mm": 1.1,
+       "z_mm": 112.7,
+       "dz_grasp_mm": 26.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70409,
+       "snap_mm": 0.3,
+       "z_mm": 89.7,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70396,
+       "snap_mm": 1.1,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70408,
+       "snap_mm": 0.3,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 0.5,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.0,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70976,
+       "snap_mm": 0.2,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 2,
+      "dz_grasp_mm": -1.2,
+      "lat_grasp_mm": 0.2
+     },
+     "lowest_below_grasp_mm": -1.2,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70752,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.0,
+        -0.0,
+        -30.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70804,
+       "snap_mm": 1.2,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "grip": 0.0,
+       "closed": true
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70804,
+       "snap_mm": 1.2,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": -1.2,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70752,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.0,
+        -0.0,
+        -30.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.2,
+        0.0,
+        68.8
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70739,
+       "snap_mm": 0.5,
+       "z_mm": 153.4,
+       "dz_grasp_mm": 67.6,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.1,
+        0.0,
+        42.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70718,
+       "snap_mm": 4.2,
+       "z_mm": 195.5,
+       "dz_grasp_mm": 109.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.3,
+        -53.1,
+        0.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 1.0,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70975,
+       "snap_mm": 0.1,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        15.2,
+        -13.4,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    }
+   ]
+  },
+  "cat_stages_fixx_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": true,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70395,
+       "snap_mm": 1.0,
+       "z_mm": 112.7,
+       "dz_grasp_mm": 26.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70409,
+       "snap_mm": 0.3,
+       "z_mm": 89.7,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.6,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70408,
+       "snap_mm": 0.5,
+       "z_mm": 89.9,
+       "dz_grasp_mm": 3.8,
+       "lat_grasp_mm": 0.5,
+       "plan_mm": [
+        0.0,
+        -0.6,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70408,
+       "snap_mm": 1.0,
+       "z_mm": 90.2,
+       "dz_grasp_mm": 4.0,
+       "lat_grasp_mm": 1.0,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70375,
+       "snap_mm": 1.5,
+       "z_mm": 171.0,
+       "dz_grasp_mm": 84.9,
+       "lat_grasp_mm": 1.0,
+       "plan_mm": [
+        0.0,
+        -37.3,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70375,
+       "snap_mm": 5.3,
+       "z_mm": 171.3,
+       "dz_grasp_mm": 85.1,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        57.1,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70396,
+       "snap_mm": 1.1,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70408,
+       "snap_mm": 0.3,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        -8.7,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 0.5,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70976,
+       "snap_mm": 0.2,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -22.1,
+        -0.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": -1.2,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70752,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        -30.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.6,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 0.9,
+       "z_mm": 84.9,
+       "dz_grasp_mm": -1.0,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        -0.6,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70773,
+       "snap_mm": 1.2,
+       "z_mm": 85.1,
+       "dz_grasp_mm": -0.8,
+       "lat_grasp_mm": 1.0,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70735,
+       "snap_mm": 1.1,
+       "z_mm": 166.0,
+       "dz_grasp_mm": 80.1,
+       "lat_grasp_mm": 0.9,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        25.8
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70718,
+       "snap_mm": 1.3,
+       "z_mm": 191.7,
+       "dz_grasp_mm": 105.9,
+       "lat_grasp_mm": 1.0,
+       "plan_mm": [
+        0.0,
+        57.1,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 4.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70753,
+       "snap_mm": 1.1,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70765,
+       "snap_mm": 0.3,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 4.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -0.6,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70765,
+       "snap_mm": 0.8,
+       "z_mm": 90.0,
+       "dz_grasp_mm": 4.2,
+       "lat_grasp_mm": 0.7,
+       "plan_mm": [
+        0.0,
+        -0.6,
+        0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70764,
+       "snap_mm": 1.3,
+       "z_mm": 90.2,
+       "dz_grasp_mm": 4.4,
+       "lat_grasp_mm": 1.2,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70733,
+       "snap_mm": 1.2,
+       "z_mm": 171.1,
+       "dz_grasp_mm": 85.2,
+       "lat_grasp_mm": 1.2,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        25.8
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70706,
+       "snap_mm": 5.6,
+       "z_mm": 196.9,
+       "dz_grasp_mm": 111.0,
+       "lat_grasp_mm": 1.2,
+       "plan_mm": [
+        0.0,
+        -53.1,
+        0.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 1.0,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70975,
+       "snap_mm": 0.1,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        -8.7,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    }
+   ]
+  },
+  "aid_cat_stages_xy_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": true,
+    "hold_grasp": true,
+    "hold_open": false
+   },
+   "success": 6,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.3,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70395,
+       "snap_mm": 1.1,
+       "z_mm": 112.7,
+       "dz_grasp_mm": 26.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70409,
+       "snap_mm": 0.4,
+       "z_mm": 89.7,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70407,
+       "snap_mm": 0.2,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 4.9,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70405,
+       "snap_mm": 0.5,
+       "z_mm": 92.4,
+       "dz_grasp_mm": 6.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.3,
+      "lat_grasp_mm": 0.3
+     },
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70396,
+       "snap_mm": 1.1,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70408,
+       "snap_mm": 0.3,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70407,
+       "snap_mm": 0.3,
+       "z_mm": 91.4,
+       "dz_grasp_mm": 5.0,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70406,
+       "snap_mm": 0.4,
+       "z_mm": 92.7,
+       "dz_grasp_mm": 6.3,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.3,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 0.5,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70976,
+       "snap_mm": 0.3,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70974,
+       "snap_mm": 0.1,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 5.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70972,
+       "snap_mm": 0.7,
+       "z_mm": 92.4,
+       "dz_grasp_mm": 6.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": -0.2,
+      "lat_grasp_mm": 0.2
+     },
+     "lowest_below_grasp_mm": -1.2,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70752,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -30.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.5
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 0.6,
+       "z_mm": 85.2,
+       "dz_grasp_mm": -0.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.5
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70780,
+       "snap_mm": 0.2,
+       "z_mm": 85.7,
+       "dz_grasp_mm": -0.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 3,
+      "dz_grasp_mm": 5.3,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 4.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70753,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70765,
+       "snap_mm": 0.3,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 4.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70764,
+       "snap_mm": 0.6,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 5.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70830,
+       "snap_mm": 0.5,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 5.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.4,
+      "lat_grasp_mm": 0.4
+     },
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 1.0,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70975,
+       "snap_mm": 0.1,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70974,
+       "snap_mm": 0.2,
+       "z_mm": 91.4,
+       "dz_grasp_mm": 5.0,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70973,
+       "snap_mm": 0.5,
+       "z_mm": 92.8,
+       "dz_grasp_mm": 6.4,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    }
+   ]
+  },
+  "aid_cat_stages_xxy_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": true,
+    "hold_xy": true,
+    "hold_grasp": true,
+    "hold_open": false
+   },
+   "success": 6,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.3,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70395,
+       "snap_mm": 1.1,
+       "z_mm": 112.7,
+       "dz_grasp_mm": 26.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70409,
+       "snap_mm": 0.4,
+       "z_mm": 89.7,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70407,
+       "snap_mm": 0.2,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 4.9,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70405,
+       "snap_mm": 0.5,
+       "z_mm": 92.4,
+       "dz_grasp_mm": 6.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.3,
+      "lat_grasp_mm": 0.3
+     },
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70396,
+       "snap_mm": 1.1,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70408,
+       "snap_mm": 0.3,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70407,
+       "snap_mm": 0.3,
+       "z_mm": 91.4,
+       "dz_grasp_mm": 5.0,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70406,
+       "snap_mm": 0.4,
+       "z_mm": 92.7,
+       "dz_grasp_mm": 6.3,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.3,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 0.5,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70976,
+       "snap_mm": 0.3,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70974,
+       "snap_mm": 0.1,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 5.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70972,
+       "snap_mm": 0.7,
+       "z_mm": 92.4,
+       "dz_grasp_mm": 6.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": -0.2,
+      "lat_grasp_mm": 0.2
+     },
+     "lowest_below_grasp_mm": -1.2,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70752,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -30.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 1.0,
+       "z_mm": 84.7,
+       "dz_grasp_mm": -1.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.5
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70773,
+       "snap_mm": 0.6,
+       "z_mm": 85.2,
+       "dz_grasp_mm": -0.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.5
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70780,
+       "snap_mm": 0.2,
+       "z_mm": 85.7,
+       "dz_grasp_mm": -0.2,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 3,
+      "dz_grasp_mm": 5.3,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 4.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70753,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70765,
+       "snap_mm": 0.3,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 4.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70764,
+       "snap_mm": 0.6,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 5.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70830,
+       "snap_mm": 0.5,
+       "z_mm": 91.1,
+       "dz_grasp_mm": 5.3,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "success",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 6.4,
+      "lat_grasp_mm": 0.4
+     },
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70963,
+       "snap_mm": 1.0,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70975,
+       "snap_mm": 0.1,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70974,
+       "snap_mm": 0.2,
+       "z_mm": 91.4,
+       "dz_grasp_mm": 5.0,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        1.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70973,
+       "snap_mm": 0.5,
+       "z_mm": 92.8,
+       "dz_grasp_mm": 6.4,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.1,
+        80.9
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    }
+   ]
+  },
+  "cat36_stages_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": 36.0,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70361,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.6,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70361,
+       "snap_mm": 8.2,
+       "z_mm": 197.4,
+       "dz_grasp_mm": 111.3,
+       "lat_grasp_mm": 5.3,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70361,
+       "snap_mm": 8.1,
+       "z_mm": 197.3,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.3,
+       "plan_mm": [
+        -0.6,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 104.8,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.6,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70357,
+       "snap_mm": 5.5,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 104.8,
+       "lat_grasp_mm": 5.8,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70353,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.8,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70353,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.8,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70353,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.8,
+       "plan_mm": [
+        -0.4,
+        17.9,
+        0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70353,
+       "snap_mm": 8.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.9,
+       "plan_mm": [
+        -0.4,
+        17.9,
+        0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70353,
+       "snap_mm": 8.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 6.0,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "off path",
+     "steps": 11,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 104.8,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70929,
+       "snap_mm": 5.3,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 104.9,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70929,
+       "snap_mm": 5.3,
+       "z_mm": 190.9,
+       "dz_grasp_mm": 104.8,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 8.2,
+       "z_mm": 197.4,
+       "dz_grasp_mm": 111.3,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.1,
+       "z_mm": 197.3,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 7,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 8,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 9,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 10,
+       "goal": 5,
+       "goal_stage": 7,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.3,
+       "plan_mm": [
+        -0.6,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.5,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.7,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 1.8,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70702,
+       "snap_mm": 6.8,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 3.0,
+       "plan_mm": [
+        -0.6,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70706,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70706,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70706,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.5,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70706,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.6,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70706,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 1.5,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70699,
+       "snap_mm": 6.7,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 2.8,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.2,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.5,
+       "plan_mm": [
+        -0.6,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 8.1,
+       "z_mm": 197.3,
+       "dz_grasp_mm": 110.9,
+       "lat_grasp_mm": 5.9,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.9,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    }
+   ]
+  },
+  "cat36_stages_fixx_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": 36.0,
+   "aids": {
+    "fix_x": true,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70361,
+       "snap_mm": 8.1,
+       "z_mm": 197.4,
+       "dz_grasp_mm": 111.3,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70361,
+       "snap_mm": 8.0,
+       "z_mm": 197.3,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 104.8,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70357,
+       "snap_mm": 5.5,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 104.8,
+       "lat_grasp_mm": 5.7,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70353,
+       "snap_mm": 8.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.7,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70353,
+       "snap_mm": 8.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.7,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70353,
+       "snap_mm": 8.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.7,
+       "plan_mm": [
+        0.0,
+        17.7,
+        0.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70353,
+       "snap_mm": 8.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.7,
+       "plan_mm": [
+        0.0,
+        17.7,
+        0.3
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70353,
+       "snap_mm": 8.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.7,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "off path",
+     "steps": 11,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 104.8,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70929,
+       "snap_mm": 5.3,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 104.9,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70929,
+       "snap_mm": 5.3,
+       "z_mm": 190.9,
+       "dz_grasp_mm": 104.8,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 8.2,
+       "z_mm": 197.4,
+       "dz_grasp_mm": 111.3,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.1,
+       "z_mm": 197.3,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 7,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 8,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 9,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 10,
+       "goal": 5,
+       "goal_stage": 7,
+       "row": 70921,
+       "snap_mm": 8.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 5.2,
+       "plan_mm": [
+        0.0,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 1.5,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70718,
+       "snap_mm": 6.7,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 2.8,
+       "plan_mm": [
+        0.0,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 1.2,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70718,
+       "snap_mm": 6.7,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 2.5,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "off path",
+     "steps": 7,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        27.1,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 5,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 8.0,
+       "z_mm": 197.3,
+       "dz_grasp_mm": 110.9,
+       "lat_grasp_mm": 5.8,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 6,
+       "goal": 4,
+       "goal_stage": 6,
+       "row": 70921,
+       "snap_mm": 8.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 5.8,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    }
+   ]
+  },
+  "aid_cat36_stages_xy_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": 36.0,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": true,
+    "hold_grasp": true,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.5,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.2,
+      "lat_grasp_mm": 0.3
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.5,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.2,
+        -8.7,
+        1.3
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.7,
+      "lat_grasp_mm": 0.2
+     },
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.7,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.3,
+        1.3,
+        8.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.2,
+      "lat_grasp_mm": 0.4
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.6,
+        27.1,
+        -0.2
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    }
+   ]
+  },
+  "aid_cat36_stages_xxy_h1": {
+   "goals": "stages",
+   "sampling": "cat",
+   "cat_max_mm": 36.0,
+   "aids": {
+    "fix_x": true,
+    "hold_xy": true,
+    "hold_grasp": true,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.5,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70361,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -34.7,
+        -0.1
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.2,
+      "lat_grasp_mm": 0.3
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70355,
+       "snap_mm": 6.1,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.5,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70921,
+       "snap_mm": 6.4,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.5,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        -8.7,
+        1.3
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.7,
+      "lat_grasp_mm": 0.2
+     },
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.7,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.0,
+        1.3,
+        8.0
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "closed early",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 4,
+      "dz_grasp_mm": 111.2,
+      "lat_grasp_mm": 0.4
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 2,
+       "goal_stage": 4,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        0.0,
+        32.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 3,
+       "goal_stage": 5,
+       "row": 70917,
+       "snap_mm": 6.0,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.2,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        0.0,
+        27.1,
+        -0.2
+       ],
+       "grip": 1.0,
+       "closed": true
+      }
+     ]
+    }
+   ]
+  },
+  "cat_h1": {
+   "goals": "paper3",
+   "sampling": "cat",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70395,
+       "snap_mm": 1.1,
+       "z_mm": 112.7,
+       "dz_grasp_mm": 26.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70409,
+       "snap_mm": 0.3,
+       "z_mm": 89.7,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.6,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70396,
+       "snap_mm": 1.1,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70408,
+       "snap_mm": 0.3,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.6,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70963,
+       "snap_mm": 0.5,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.0,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70976,
+       "snap_mm": 0.2,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 4.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70752,
+       "snap_mm": 1.0,
+       "z_mm": 112.8,
+       "dz_grasp_mm": 27.0,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70765,
+       "snap_mm": 0.3,
+       "z_mm": 89.8,
+       "dz_grasp_mm": 4.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        16.6,
+        -0.3,
+        -0.2
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "off path",
+     "steps": 5,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.2,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 0.6,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.3,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 1.2,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 3,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70718,
+       "snap_mm": 6.5,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 1.9,
+       "plan_mm": [
+        0.6,
+        0.1,
+        80.9
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 4,
+       "goal": 2,
+       "goal_stage": 6,
+       "row": 70718,
+       "snap_mm": 6.7,
+       "z_mm": 197.6,
+       "dz_grasp_mm": 111.7,
+       "lat_grasp_mm": 2.5,
+       "plan_mm": [
+        -0.3,
+        -53.1,
+        0.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "lateral guard",
+     "steps": 3,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 3.7,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -0.1,
+        -0.1,
+        -78.4
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 1,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70963,
+       "snap_mm": 1.0,
+       "z_mm": 113.1,
+       "dz_grasp_mm": 26.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        0.1,
+        -0.0,
+        -23.0
+       ],
+       "grip": 0.0,
+       "closed": false
+      },
+      {
+       "k": 2,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70975,
+       "snap_mm": 0.1,
+       "z_mm": 90.1,
+       "dz_grasp_mm": 3.7,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        15.2,
+        -13.4,
+        -0.1
+       ],
+       "grip": 0.0,
+       "closed": false
+      }
+     ]
+    }
+   ]
+  },
+  "base_h1": {
+   "goals": "paper3",
+   "sampling": "box",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "closed early",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 0,
+      "dz_grasp_mm": 105.0,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -27.0,
+        24.7,
+        -119.1
+       ],
+       "grip": 0.72,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "closed early",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 0,
+      "dz_grasp_mm": 105.1,
+      "lat_grasp_mm": 0.3
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -18.6,
+        21.7,
+        -118.0
+       ],
+       "grip": 0.75,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -35.8,
+        26.3,
+        -128.1
+       ],
+       "grip": -0.74,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        0.4,
+        6.6,
+        -125.1
+       ],
+       "grip": -0.74,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "closed early",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 0,
+      "dz_grasp_mm": 105.4,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -12.2,
+        12.8,
+        -121.8
+       ],
+       "grip": 0.75,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "closed early",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 0,
+      "dz_grasp_mm": 105.1,
+      "lat_grasp_mm": 0.4
+     },
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 4,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -17.4,
+        23.6,
+        -120.6
+       ],
+       "grip": 0.75,
+       "closed": true
+      }
+     ]
+    }
+   ]
+  },
+  "stages_h1": {
+   "goals": "stages",
+   "sampling": "box",
+   "cat_max_mm": null,
+   "aids": {
+    "fix_x": false,
+    "hold_xy": false,
+    "hold_grasp": false,
+    "hold_open": false
+   },
+   "success": 0,
+   "cases": [
+    {
+     "transition": "AAAA>BAAA",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.0,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70354,
+       "snap_mm": 0.0,
+       "z_mm": 191.1,
+       "dz_grasp_mm": 105.0,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -42.4,
+        22.4,
+        -121.6
+       ],
+       "grip": -0.26,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>BCCC",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70353,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.3,
+       "plan_mm": [
+        -25.1,
+        27.6,
+        -120.6
+       ],
+       "grip": 0.44,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "AAAA>CAAA",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -27.6,
+        18.2,
+        -124.0
+       ],
+       "grip": -0.3,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>CBBB",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.2,
+       "plan_mm": [
+        -12.7,
+        13.2,
+        -124.7
+       ],
+       "grip": -0.49,
+       "closed": false
+      }
+     ]
+    },
+    {
+     "transition": "BBBB>ABBB",
+     "outcome": "closed early",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": {
+      "k": 0,
+      "dz_grasp_mm": 105.4,
+      "lat_grasp_mm": 0.1
+     },
+     "lowest_below_grasp_mm": 105.4,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70710,
+       "snap_mm": 0.0,
+       "z_mm": 191.2,
+       "dz_grasp_mm": 105.4,
+       "lat_grasp_mm": 0.1,
+       "plan_mm": [
+        -31.2,
+        27.3,
+        -125.3
+       ],
+       "grip": 0.74,
+       "closed": true
+      }
+     ]
+    },
+    {
+     "transition": "CCCC>ACCC",
+     "outcome": "lateral guard",
+     "steps": 1,
+     "expert_steps_hover_to_lift_end": 5.6,
+     "close": null,
+     "lowest_below_grasp_mm": 105.1,
+     "log": [
+      {
+       "k": 0,
+       "goal": 1,
+       "goal_stage": 3,
+       "row": 70921,
+       "snap_mm": 0.0,
+       "z_mm": 191.5,
+       "dz_grasp_mm": 105.1,
+       "lat_grasp_mm": 0.4,
+       "plan_mm": [
+        -34.1,
+        34.1,
+        -124.5
+       ],
+       "grip": 0.4,
+       "closed": false
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "box_mm": [
+  [
+   408.8,
+   -62.5,
+   84.7
+  ],
+  [
+   504.8999938964844,
+   94.5,
+   197.60000610351562
+  ]
+ ]
+}

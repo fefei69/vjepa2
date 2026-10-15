@@ -1,0 +1,215 @@
+{
+ "goals": "paper3",
+ "switch": "time",
+ "goal_source": "train",
+ "final_stage": 8,
+ "fix_x": false,
+ "hold_grasp": false,
+ "hold_open": false,
+ "hold_xy": false,
+ "eval_stages": "all",
+ "goal_frames": {
+  "1": "end of stage 4 (grasp)",
+  "2": "end of stage 6 (transit)",
+  "3": "end of stage 8 (release)"
+ },
+ "schedule": "transition",
+ "time_schedule_reach_steps": [
+  8,
+  12,
+  15
+ ],
+ "time_schedule_reach_steps_by_transition": {
+  "AAAA>CAAA": [
+   8,
+   14,
+   17
+  ],
+  "AAAA>BAAA": [
+   8,
+   12,
+   15
+  ],
+  "BBBB>ABBB": [
+   7,
+   11,
+   14
+  ],
+  "CCCC>ACCC": [
+   8,
+   14,
+   17
+  ],
+  "BBBB>CBBB": [
+   7,
+   11,
+   14
+  ],
+  "CCCC>BCCC": [
+   8,
+   12,
+   15
+  ]
+ },
+ "time_schedule_steps_per_goal": [
+  8,
+  4,
+  3
+ ],
+ "step_rows": 30,
+ "row_stride": 15,
+ "step_s": 1.0,
+ "planner": {
+  "rollout": 1,
+  "samples": 800,
+  "topk": 10,
+  "cem_steps": 10,
+  "momentum_mean": 0.15,
+  "momentum_std": 0.15,
+  "maxnorm": 0.1875,
+  "source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1",
+  "objective": "l1",
+  "context_window": "all"
+ },
+ "protocol": "paper",
+ "sampling": "box",
+ "action_bounds": null,
+ "codebook": null,
+ "checkpoint": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/J_firstmove_1fps_vitg_finetune_v1/best.pt",
+ "archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/test.npz",
+ "goal_archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/train.npz",
+ "moves": {
+  "test": 6,
+  "test_incomplete_skipped": 0,
+  "test_without_training_exemplar": 0,
+  "train": 48,
+  "train_incomplete_skipped": 0,
+  "candidate_rows": 172
+ },
+ "switch_agreement_with_stage": 0.8953488372093024,
+ "overall": {
+  "rows": 172,
+  "goal_seconds_median": 2.9833333333333334,
+  "moving_rows": 130,
+  "direction_cos_median": 0.7467457714639969,
+  "direction_correct": 0.8692307692307693,
+  "direction_within_45deg": 0.5307692307692308,
+  "yz_err_over_zero_median": 2.380107853496792,
+  "gripper_events": 19,
+  "gripper_sign_accuracy": 0.8421052631578947
+ },
+ "by_stage": {
+  "open": {
+   "rows": 12,
+   "goal_seconds_median": 7.233333333333333,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "approach_source": {
+   "rows": 38,
+   "goal_seconds_median": 5.233333333333333,
+   "moving_rows": 31,
+   "direction_cos_median": 0.1545789750130373,
+   "direction_correct": 0.6129032258064516,
+   "direction_within_45deg": 0.22580645161290322,
+   "yz_err_over_zero_median": 4.909058044381498,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "descend_source": {
+   "rows": 24,
+   "goal_seconds_median": 2.3833333333333333,
+   "moving_rows": 19,
+   "direction_cos_median": 0.986175113461115,
+   "direction_correct": 0.9473684210526315,
+   "direction_within_45deg": 0.9473684210526315,
+   "yz_err_over_zero_median": 0.7004605837589639,
+   "gripper_events": 5,
+   "gripper_sign_accuracy": 1.0
+  },
+  "grasp": {
+   "rows": 18,
+   "goal_seconds_median": 0.7333333333333333,
+   "moving_rows": 8,
+   "direction_cos_median": 0.5047578524091261,
+   "direction_correct": 0.875,
+   "direction_within_45deg": 0.375,
+   "yz_err_over_zero_median": 1.004325531195107,
+   "gripper_events": 10,
+   "gripper_sign_accuracy": 0.8
+  },
+  "lift": {
+   "rows": 23,
+   "goal_seconds_median": 3.7333333333333334,
+   "moving_rows": 23,
+   "direction_cos_median": 0.6675034215668746,
+   "direction_correct": 0.8695652173913043,
+   "direction_within_45deg": 0.43478260869565216,
+   "yz_err_over_zero_median": 3.0121551893706404,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "transit": {
+   "rows": 33,
+   "goal_seconds_median": 1.7333333333333334,
+   "moving_rows": 31,
+   "direction_cos_median": 0.9415709411734328,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.6774193548387096,
+   "yz_err_over_zero_median": 1.954151478032773,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "insert_target": {
+   "rows": 24,
+   "goal_seconds_median": 2.033333333333333,
+   "moving_rows": 18,
+   "direction_cos_median": 0.7446267202925003,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.5555555555555556,
+   "yz_err_over_zero_median": 1.601322575416673,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 0.75
+  }
+ },
+ "by_goal": {
+  "goal_1": {
+   "rows": 90,
+   "goal_seconds_median": 3.7333333333333334,
+   "moving_rows": 56,
+   "direction_cos_median": 0.5047578524091261,
+   "direction_correct": 0.75,
+   "direction_within_45deg": 0.4642857142857143,
+   "yz_err_over_zero_median": 2.6949771630913375,
+   "gripper_events": 15,
+   "gripper_sign_accuracy": 0.8666666666666667
+  },
+  "goal_2": {
+   "rows": 54,
+   "goal_seconds_median": 2.7333333333333334,
+   "moving_rows": 52,
+   "direction_cos_median": 0.7808842080523326,
+   "direction_correct": 0.9423076923076923,
+   "direction_within_45deg": 0.5769230769230769,
+   "yz_err_over_zero_median": 2.6155176780263627,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_3": {
+   "rows": 28,
+   "goal_seconds_median": 2.1333333333333333,
+   "moving_rows": 22,
+   "direction_cos_median": 0.7646301284186974,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.5909090909090909,
+   "yz_err_over_zero_median": 1.7741310048205556,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 0.75
+  }
+ }
+}

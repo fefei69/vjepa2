@@ -1,0 +1,275 @@
+{
+ "goals": "stages",
+ "switch": "time",
+ "goal_source": "train",
+ "final_stage": 8,
+ "fix_x": false,
+ "hold_grasp": false,
+ "hold_open": false,
+ "hold_xy": false,
+ "eval_stages": "all",
+ "goal_frames": {
+  "1": "end of stage 3 (descend_source)",
+  "2": "end of stage 4 (grasp)",
+  "3": "end of stage 5 (lift)",
+  "4": "end of stage 6 (transit)",
+  "5": "end of stage 7 (insert_target)",
+  "6": "end of stage 8 (release)"
+ },
+ "schedule": "transition",
+ "time_schedule_reach_steps": [
+  6,
+  8,
+  10,
+  12,
+  14,
+  15
+ ],
+ "time_schedule_reach_steps_by_transition": {
+  "AAAA>CAAA": [
+   6,
+   8,
+   10,
+   14,
+   16,
+   17
+  ],
+  "AAAA>BAAA": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   15
+  ],
+  "BBBB>ABBB": [
+   6,
+   7,
+   9,
+   11,
+   13,
+   14
+  ],
+  "CCCC>ACCC": [
+   6,
+   8,
+   10,
+   14,
+   16,
+   17
+  ],
+  "CCCC>BCCC": [
+   6,
+   8,
+   10,
+   12,
+   14,
+   15
+  ],
+  "BBBB>CBBB": [
+   6,
+   7,
+   9,
+   11,
+   13,
+   14
+  ]
+ },
+ "time_schedule_steps_per_goal": [
+  6,
+  2,
+  2,
+  2,
+  2,
+  1
+ ],
+ "step_rows": 30,
+ "row_stride": 15,
+ "step_s": 1.0,
+ "planner": {
+  "rollout": 1,
+  "samples": 800,
+  "topk": 10,
+  "cem_steps": 10,
+  "momentum_mean": 0.15,
+  "momentum_std": 0.15,
+  "maxnorm": 0.1875,
+  "source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1",
+  "objective": "l1",
+  "context_window": "all"
+ },
+ "protocol": "paper",
+ "sampling": "box",
+ "action_bounds": null,
+ "codebook": null,
+ "checkpoint": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/A_expert6all_1fps_vitg_finetune_v1/best.pt",
+ "archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/test.npz",
+ "goal_archive": "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move/train.npz",
+ "moves": {
+  "test": 6,
+  "test_incomplete_skipped": 0,
+  "test_without_training_exemplar": 0,
+  "train": 48,
+  "train_incomplete_skipped": 0,
+  "candidate_rows": 172
+ },
+ "switch_agreement_with_stage": 0.7674418604651163,
+ "overall": {
+  "rows": 172,
+  "goal_seconds_median": 1.7333333333333334,
+  "moving_rows": 130,
+  "direction_cos_median": 0.977697560711962,
+  "direction_correct": 0.8615384615384616,
+  "direction_within_45deg": 0.7307692307692307,
+  "yz_err_over_zero_median": 1.1797482538204225,
+  "gripper_events": 19,
+  "gripper_sign_accuracy": 0.9473684210526315
+ },
+ "by_stage": {
+  "open": {
+   "rows": 12,
+   "goal_seconds_median": 5.833333333333333,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "approach_source": {
+   "rows": 38,
+   "goal_seconds_median": 3.8166666666666664,
+   "moving_rows": 31,
+   "direction_cos_median": -0.11850867438903726,
+   "direction_correct": 0.41935483870967744,
+   "direction_within_45deg": 0.25806451612903225,
+   "yz_err_over_zero_median": 4.862962217003559,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "descend_source": {
+   "rows": 24,
+   "goal_seconds_median": 1.3333333333333333,
+   "moving_rows": 19,
+   "direction_cos_median": 0.9980040586622756,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.9473684210526315,
+   "yz_err_over_zero_median": 0.2512413880244335,
+   "gripper_events": 5,
+   "gripper_sign_accuracy": 0.8
+  },
+  "grasp": {
+   "rows": 18,
+   "goal_seconds_median": 0.7333333333333333,
+   "moving_rows": 8,
+   "direction_cos_median": 0.951605861820377,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 1.0,
+   "yz_err_over_zero_median": 0.9474857525965079,
+   "gripper_events": 10,
+   "gripper_sign_accuracy": 1.0
+  },
+  "lift": {
+   "rows": 23,
+   "goal_seconds_median": 1.3333333333333333,
+   "moving_rows": 23,
+   "direction_cos_median": 0.9950449438854061,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8695652173913043,
+   "yz_err_over_zero_median": 1.14865933792909,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "transit": {
+   "rows": 33,
+   "goal_seconds_median": 1.7333333333333334,
+   "moving_rows": 31,
+   "direction_cos_median": 0.9415419701471978,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8387096774193549,
+   "yz_err_over_zero_median": 1.1091303985494927,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "insert_target": {
+   "rows": 24,
+   "goal_seconds_median": 1.1333333333333333,
+   "moving_rows": 18,
+   "direction_cos_median": 0.9773142144174154,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8333333333333334,
+   "yz_err_over_zero_median": 0.4392341819199712,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 1.0
+  }
+ },
+ "by_goal": {
+  "goal_1": {
+   "rows": 70,
+   "goal_seconds_median": 3.3333333333333335,
+   "moving_rows": 49,
+   "direction_cos_median": 0.90623899689832,
+   "direction_correct": 0.6326530612244898,
+   "direction_within_45deg": 0.5306122448979592,
+   "yz_err_over_zero_median": 3.2035485257924727,
+   "gripper_events": 2,
+   "gripper_sign_accuracy": 0.5
+  },
+  "goal_2": {
+   "rows": 20,
+   "goal_seconds_median": 0.8833333333333333,
+   "moving_rows": 7,
+   "direction_cos_median": 0.9221663046651684,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8571428571428571,
+   "yz_err_over_zero_median": 0.9460566996406619,
+   "gripper_events": 13,
+   "gripper_sign_accuracy": 1.0
+  },
+  "goal_3": {
+   "rows": 23,
+   "goal_seconds_median": 1.3333333333333333,
+   "moving_rows": 23,
+   "direction_cos_median": 0.9950449438854061,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8695652173913043,
+   "yz_err_over_zero_median": 1.14865933792909,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_4": {
+   "rows": 31,
+   "goal_seconds_median": 1.7333333333333334,
+   "moving_rows": 29,
+   "direction_cos_median": 0.9309897260748686,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8275862068965517,
+   "yz_err_over_zero_median": 1.0783102193189107,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_5": {
+   "rows": 22,
+   "goal_seconds_median": 1.4333333333333333,
+   "moving_rows": 22,
+   "direction_cos_median": 0.981290491583712,
+   "direction_correct": 1.0,
+   "direction_within_45deg": 0.8636363636363636,
+   "yz_err_over_zero_median": 0.688360252739094,
+   "gripper_events": 0,
+   "gripper_sign_accuracy": NaN
+  },
+  "goal_6": {
+   "rows": 6,
+   "goal_seconds_median": 1.1333333333333333,
+   "moving_rows": 0,
+   "direction_cos_median": NaN,
+   "direction_correct": NaN,
+   "direction_within_45deg": NaN,
+   "yz_err_over_zero_median": NaN,
+   "gripper_events": 4,
+   "gripper_sign_accuracy": 1.0
+  }
+ }
+}
