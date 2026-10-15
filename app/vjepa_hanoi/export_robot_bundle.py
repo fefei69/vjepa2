@@ -15,7 +15,12 @@
 #                 the same schedules counted from each demo's hover (hover_schedules, stage_hover_schedules) for runs
 #                 that start there; step_rows, the model step in raw rows (the config's data.fps: 8 at fps 4); and
 #                 action_bounds_json, the training actions' range at that step (goal_planner --sampling data), and
-#                 action_codebook_json, the categorical planner's action set (goal_planner --sampling cat)
+#                 action_codebook_json, the categorical planner's action set (goal_planner --sampling cat); and
+#                 board_names / board_frames / board_frame_sources, one goal frame per board that ends a complete
+#                 training move (the frame goal_planner's goal_board picks: the last row of the first such move, arm
+#                 retreated), for the plain goal-image runs (arm_goal_client --goal-board CCCC, e.g. the H15 tasks).
+#                 The box is the archive's measured_xyz range, padded as goal_planner pads it, or goal_planner's
+#                 fallback box (the six-task recordings) for an archive without measured_xyz, as the server uses it
 #   config.yaml   the training config (the server reads the model shape from it)
 #   MANIFEST.json sources, sha256 of every file, and the command to start the server
 # --goals_only rewrites goals.npz (and the manifest) of an existing bundle and leaves weights.pt as it is.
@@ -35,6 +40,7 @@ import torch
 import yaml
 
 from app.vjepa_hanoi.action_bounds import action_bounds, action_codebook
+from app.vjepa_hanoi.goal_planner import WORKSPACE_MAX, WORKSPACE_MIN
 from app.vjepa_hanoi.hanoi import step_rows
 from app.vjepa_hanoi.paper_protocol_eval import goal_rows, goal_stages, moves, time_schedule
 
@@ -102,9 +108,24 @@ def main():
         reach_s = time_schedule(same, args.final_stage, sst, fstp)
         stage_schedules.append(np.diff([0] + reach_s).tolist())
         stage_hover_schedules.append(np.diff([0] + time_schedule(same, args.final_stage, sst, fstp, "hover")).tolist())
+    board_names, board_frames, board_sources = [], [], []
+    for m in train:  # the goal of goal_planner.set_goal(board=...): the last row of the first move ending in that board
+        board = m["transition"].split(">")[1]
+        if board in board_names:
+            continue
+        with h5py.File(paths[m["file"]], "r") as h:
+            board_frames.append(h["pixels"][int(m["rows"][-1])])
+        board_names.append(board)
+        board_sources.append([m["file"], int(m["rows"][-1])])
     reach = time_schedule(train, args.final_stage, fstp=fstp)
     z = np.load(args.goal_archive)
-    xyz = z["measured_xyz"]
+    if "measured_xyz" in z.files:  # goal_planner's box for --goal_archive: the recorded range, padded
+        xyz = z["measured_xyz"]
+        box_min, box_max = xyz.min(0) - np.array([0.005, 0.005, 0.001]), xyz.max(0) + 0.005
+        box_source = f"training data of {os.path.abspath(args.goal_archive)} (bundle)"
+    else:
+        box_min, box_max = WORKSPACE_MIN, WORKSPACE_MAX
+        box_source = "six-task recordings (fallback: the goal archive has no measured_xyz) (bundle)"
     np.savez_compressed(
         os.path.join(args.out, "goals.npz"),
         transitions=np.array(transitions),
@@ -113,8 +134,9 @@ def main():
         source_paths=np.array(paths),
         schedules=np.array(schedules, np.int64),
         global_schedule=np.array([reach[0], reach[1] - reach[0], reach[2] - reach[1]], np.int64),
-        box_min=xyz.min(0) - np.array([0.005, 0.005, 0.001]),
-        box_max=xyz.max(0) + 0.005,
+        box_min=box_min,
+        box_max=box_max,
+        box_source=np.array(box_source),
         final_stage=np.array(args.final_stage),
         stage_goal_stages=np.array(sst, np.int64),
         stage_frames=np.stack(stage_frames).astype(np.uint8),
@@ -126,6 +148,9 @@ def main():
         goal_archive=np.array(os.path.abspath(args.goal_archive)),
         action_bounds_json=np.array(json.dumps(action_bounds(args.goal_archive, cfg["data"].get("fps", 4)))),
         action_codebook_json=np.array(json.dumps(action_codebook(args.goal_archive, cfg["data"].get("fps", 4)))),
+        board_names=np.array(board_names),
+        board_frames=np.stack(board_frames).astype(np.uint8),
+        board_frame_sources=np.array(board_sources, np.int64),
     )
     shutil.copyfile(args.fname, os.path.join(args.out, "config.yaml"))
     files = {f: sha256(os.path.join(args.out, f)) for f in ("weights.pt", "goals.npz", "config.yaml")}
@@ -135,12 +160,14 @@ def main():
                    "final_stage": args.final_stage, "transitions": dict(zip(transitions, schedules)),
                    "stage_goals": {"stages": list(sst), "schedules": dict(zip(transitions, stage_schedules))},
                    "step_rows": fstp, "hover_schedules": dict(zip(transitions, hover_schedules)),
+                   "boards": dict(zip(board_names, board_sources)), "box_source": box_source,
                    "stage_hover_schedules": dict(zip(transitions, stage_hover_schedules)),
                    "sha256": files,
                    "serve": "python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml --checkpoint "
                             "<bundle>/weights.pt --goal_bundle <bundle>/goals.npz --protocol paper "
                             "--host 127.0.0.1 --port 8766"}, f, indent=1)  # fmt: skip
-    print(f"{len(transitions)} transitions {transitions}; schedules {schedules}; -> {args.out}", flush=True)
+    print(f"{len(transitions)} transitions {transitions}; schedules {schedules}; {len(board_names)} goal boards "
+          f"{sorted(board_names)}; box {box_source}; -> {args.out}", flush=True)  # fmt: skip
 
 
 if __name__ == "__main__":

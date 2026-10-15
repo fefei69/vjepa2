@@ -59,7 +59,8 @@
 # Goals (POST /goal, an .npz body; optional fix_x () and hold_grasp () booleans override the server defaults):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
 #   goal_images (n,224,224,3)   paper protocol: several photos in order (grasped, near the target, final)
-#   goal_board "CCCC"           one training frame showing that board at the end of a move (arm retreated)
+#   goal_board "CCCC"           one training frame showing that board at the end of a move (arm retreated); with
+#                               --goal_bundle, the bundle's frame of that board (export_robot_bundle: the same frame)
 #   transition "AAAA>BAAA"      paper protocol, one game move: three frames of the first complete training move of that
 #                               transition: the end of the grasp (ring grasped), the end of the transit (ring above the
 #                               target peg) and the end of the release (ring placed; --final_stage 9: arm retreated)
@@ -216,7 +217,8 @@ class GoalPlanner:
             if bundle_rows != self.fstp:
                 raise ValueError(f"the bundle's schedules count {bundle_rows}-row steps, the model's step is "
                                  f"{self.fstp} rows (data.fps of {fname})")  # fmt: skip
-            self.box = (b["box_min"], b["box_max"], f"training data of {str(b['goal_archive'])} (bundle)")
+            self.box = (b["box_min"], b["box_max"], str(b["box_source"]) if "box_source" in b.files
+                        else f"training data of {str(b['goal_archive'])} (bundle)")  # fmt: skip
         self.goal_bundle = goal_bundle
         self.action_bounds = self.codebook = None
         if sampling == "cat":
@@ -340,6 +342,16 @@ class GoalPlanner:
             desc = f"{len(images)} uploaded image(s)"
             if len(images) == 3 and self.protocol == "paper":  # the paper's three: grasped, near the target, final
                 self.goal_stages = list(gst)
+        elif board is not None and self.bundle is not None:
+            if "board_frames" not in self.bundle_data:
+                raise ValueError("this goal bundle has no board goals: re-export it (export_robot_bundle --goals_only)")
+            names = [str(x) for x in self.bundle_data["board_names"]]
+            if board not in names:
+                raise ValueError(f"no complete training move ends in board {board}; the bundle has {sorted(names)}")
+            i = names.index(board)
+            f, row = (int(x) for x in self.bundle_data["board_frame_sources"][i])
+            self.goals = [self.encode(self.bundle_data["board_frames"][i][None])]
+            desc = f"board {board}: bundled end of a training move ending in {board} (file {f}, row {row})"
         elif board is not None:
             train, _ = self.training_moves()
             m = next((m for m in train if m["transition"].endswith(">" + board)), None)
