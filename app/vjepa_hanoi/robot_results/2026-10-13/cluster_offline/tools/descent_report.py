@@ -13,7 +13,7 @@
 #                   next goal (lift or transit) while the held-out demo is still grasping (one row per case at most)
 #   descent/step    median planned dz on descend rows vs the expert's median dz on the same rows (mm per step)
 # Label: B = paper baseline, P = planner deviation (horizon, gripper std, per-stage goals, a model step other than fps
-# 4's 8 raw rows), A = task aid. For an fps-1 model use --prefix fps1_descent_ (rows every 8 raw rows, see offline.sbatch).
+# 4's 8 raw rows, --protocol jepawms, --sampling data), A = task aid. For an fps-1 model use --prefix fps1_descent_ (rows every 8 raw rows, see offline.sbatch).
 # "hover close" is the first evaluated descend row, at most --row_stride raw rows below the hover.
 import argparse
 import glob
@@ -32,7 +32,7 @@ def label(r):
         return "A"
     pl = r["planner"]
     if r["goals"] != "paper3" or pl["rollout"] != 1 or pl["samples"] != 800 or "gripper_std" in pl \
-            or r.get("step_rows", 8) != 8:
+            or r.get("step_rows", 8) != 8 or r.get("protocol", "paper") != "paper" or r.get("sampling", "box") != "box":
         return "P"
     return "B"
 
@@ -91,7 +91,8 @@ def main():
         name = os.path.basename(js)[len(args.prefix):-5]
         aids = ",".join(k for k in ("hold_open", "hold_xy", "hold_grasp", "fix_x") if r.get(k)) or "-"
         pl = r["planner"]
-        lines.append(f"| {name} | {label(r)} | {pl['rollout']} | {r['goals']} | {pl.get('gripper_std', 1.0)} | {aids} "
+        gstd = pl["init_std"][3] if "init_std" in pl else pl.get("gripper_std", 1.0)
+        lines.append(f"| {name} | {label(r)} | {pl['rollout']} | {r['goals']} | {gstd} | {aids} "
                      f"| {m['hover_close']}/{m['cases']} | {m['early_close']:.2f} | {m['close_at_bottom']:.2f} "
                      f"| {m['sideways_median']:.1f} / {m['sideways_p90']:.1f} | {m['after_switch']} | {m['descent_plan']:+.1f} vs "
                      f"{m['descent_expert']:+.1f} | {m['rows']} |")  # fmt: skip

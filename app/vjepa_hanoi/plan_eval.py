@@ -64,6 +64,16 @@ def make_step_fn(predictor, tokens_per_frame, normalize_reps, compute_new_pose):
     return step_predictor
 
 
+def windowed(step_fn, window):
+    """The predictor sees at most the last `window` frames, actions and poses of the imagined rollout (JEPA-WMs plans
+    with a sliding context of 2, W^p in arXiv 2512.24497); identical to step_fn while the rollout is that short."""
+
+    def step(reps, actions, poses):
+        return step_fn(reps[:, -window:], actions[:, -window:], poses[:, -window:])
+
+    return step
+
+
 def rollout(step_fn, frame, pose, actions):
     """frame [N,1,HW,D], pose [N,1,7], actions [N,H,7] -> final imagined frame [N,1,HW,D] (as cem rolls out)."""
     frames, poses = frame, pose

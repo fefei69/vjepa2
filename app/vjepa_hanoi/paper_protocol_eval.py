@@ -30,8 +30,9 @@
 #     uses an L1 ball of radius 0.075. Neither binds the expert (steps <= 3.3 cm), but CEM's plans sit at the clip
 #     in most rows (robot_results/2026-10-13/RESULTS.md).
 #   - The paper's 4/10/4-step schedule is specific to its task, so the Hanoi schedule is set from expert timing.
-#   - --fix_x (off by default) holds x at 0 via the repo planner's axis option. x never varies in this data, so
-#     the model cannot learn its effect, and the planned x is otherwise random.
+#   - --fix_x (off by default) holds x at 0 via the repo planner's axis option. x never varies in the play data, so
+#     a play model cannot learn its effect and plans it at random. In the one-move data x moves forward during the
+#     approach only (up to 56 mm per fps-1 step, within 3 mm in later stages), so do not fix it from the start pose.
 #   - --hold_grasp (off by default) holds the gripper closed while goal 2 is active, via the repo planner's
 #     close_gripper option.
 # Further options for the descend/grasp problem found on the arm (robot_results/2026-10-13/RESULTS.md), all off by
@@ -46,6 +47,20 @@
 #   - --hold_xy: x and y actions held at 0 while a stage-3 or stage-4 goal (descend, grasp; paper goal 1) is active.
 #     With --goals paper3, goal 1 also covers the approach from the episode start, so use it from the hover only
 #   - in --goals stages mode --hold_grasp holds the gripper closed while the lift, transit and insert goals are active
+# Planner presets, off by default (planner deviations, no task knowledge; labelled P in descent_report):
+#   - --protocol jepawms: the V-JEPA 2-AC planner of JEPA-WMs (arXiv 2512.24497; jepa-wms DROID vj2ac planning config):
+#     CEM 300 samples x 15 iterations, top 10, horizon 3, no momentum, initial std 0.1 on every sampled dim, clip +-0.1
+#     on xyz (not scaled with the model step) and +-0.75 on the gripper, the current mean kept as sample 0, no final
+#     gripper rounding, L2 energy on the last imagined frame, predictor context a sliding window of the last 2 frames.
+#     Not reproduced: they also sample rotation (+-0.1 rad, ~10x any rotation step in this data; here it stays 0),
+#     and their DROID evaluation plans once, open loop, with the goal 3 steps ahead.
+#   - --sampling data: CEM samples kept inside the range of the training actions at the model step
+#     (app/vjepa_hanoi/action_bounds.py on --goal_archive): per-axis signed xyz box at the 0.1/99.9th percentiles,
+#     initial xyz std = the per-axis spread of the moving training steps; gripper changes in [-1, 1] (training changes
+#     are 0 or about +-1), initial gripper std 0.5, clipped to what the imagined closedness allows; a sample either
+#     moves or opens/closes (|gripper| >= 0.5 zeroes its xyz, else its gripper: the expert never does both in one
+#     step); the mean is kept as sample 0 and the best-scoring sample is executed instead of the elite mean (which
+#     may average a moving and a closing elite into an unseen action). Momentum, horizon and energy: from --protocol.
 # --eval_stages 3,4 evaluates only rows in those motion stages (row selection, not a planner change): the arm runner
 # starts at the hover, so the approach rows (stages 1-2) do not apply to it.
 
@@ -65,7 +80,7 @@ from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.eval import STAGES, build_models, strip_prefixes
 from app.vjepa_hanoi.goal_distance_eval import summarize
 from app.vjepa_hanoi.hanoi import RATE_HZ, hanoi_states, poses_to_diffs, step_rows
-from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn
+from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn, windowed
 
 FSTP = 8  # raw rows per model step of the fps-4 models (30 Hz); main() uses the config's data.fps
 MAXNORM_FPS4 = 0.05  # repo cem per-axis box at fps 4; other strides scale it with the step length (same speed box)
@@ -140,6 +155,23 @@ def time_schedule(train_moves, final_stage, stages=None, fstp=FSTP, start="move"
     return [int(round(x)) for x in np.median(reach, axis=0)]
 
 
+def l2(a, b):
+    return torch.mean((a - b) ** 2, dim=-1)
+
+
+JEPAWMS = dict(rollout=3, samples=300, cem_steps=15, topk=10, momentum_mean=0.0, momentum_std=0.0,
+               momentum_mean_gripper=0.0, momentum_std_gripper=0.0, maxnorm=0.1, gripper_std=0.1, gripper_clip=0.75,
+               include_mean=True, round_gripper=0.0)  # fmt: skip
+JEPAWMS_WINDOW = 2
+GRIPPER_STD_DATA, EXCLUSIVE_GRIPPER = 0.5, 0.5  # --sampling data: P(|g| >= 0.5) = 0.32 of the first samples
+
+
+def data_sampling(bounds):
+    """cem kwargs of --sampling data from action_bounds.action_bounds(train split, fps)."""
+    return dict(init_std=bounds["std"] + [GRIPPER_STD_DATA], lo=bounds["lo"] + [-1.0], hi=bounds["hi"] + [1.0],
+                include_mean=True, exclusive_gripper=EXCLUSIVE_GRIPPER, gripper_feasible=True, return_best=True)  # fmt: skip
+
+
 def default_maxnorm(fstp):
     """The repo's 0.05 m box per fps-4 step, scaled to the step length (the same speed box, 187.5 mm/s)."""
     return MAXNORM_FPS4 if fstp == FSTP else MAXNORM_FPS4 * fstp / FSTP
@@ -171,6 +203,10 @@ def main():
     p.add_argument("--gripper_clip", type=float, default=0.75, help="planner deviation: CEM gripper clip (0.75)")
     p.add_argument("--hold_open", action="store_true", help="task aid, off by default: gripper open (descend goal)")
     p.add_argument("--hold_xy", action="store_true", help="task aid, off by default: x/y held (descend/grasp goals)")
+    p.add_argument("--protocol", choices=("paper", "jepawms"), default="paper",
+                   help="planner preset: paper (V-JEPA 2 / repo cem) or jepawms (see the header)")
+    p.add_argument("--sampling", choices=("box", "data"), default="box",
+                   help="box: the repo's clip box; data: keep samples inside the training actions' range (header)")
     p.add_argument("--eval_stages", default="", help="evaluate only rows in these motion stages, e.g. 3,4")
     p.add_argument("--predictor_chunk", type=int, default=0, help="CEM samples per predictor call (memory only)")
     p.add_argument("--out", required=True)
@@ -196,6 +232,8 @@ def main():
     predictor.eval()
     mpc = load_mpc_utils()
     step_fn = make_step_fn(predictor, tpf, norm, mpc.compute_new_pose)
+    if args.protocol == "jepawms":
+        step_fn = windowed(step_fn, JEPAWMS_WINDOW)
     if args.predictor_chunk:
         from app.vjepa_hanoi.goal_planner import chunked  # goal_planner imports this module
 
@@ -213,6 +251,17 @@ def main():
                   momentum_mean=0.15, momentum_std=0.15, maxnorm=maxnorm)  # fmt: skip
     if (args.gripper_std, args.gripper_clip) != (1.0, 0.75):  # only when set, so default runs stay byte-identical
         cem_kw |= {"gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip}
+    objective, bounds = mpc.l1, None
+    if args.protocol == "jepawms":
+        if (args.rollout, args.samples, args.cem_steps, args.maxnorm, args.gripper_std, args.gripper_clip) != (
+            1, 800, 10, None, 1.0, 0.75):  # fmt: skip
+            p.error("--protocol jepawms fixes horizon, samples, iterations, box and gripper std/clip")
+        cem_kw, objective = dict(JEPAWMS), l2
+    if args.sampling == "data":
+        from app.vjepa_hanoi.action_bounds import action_bounds
+
+        bounds = action_bounds(args.goal_archive, d.get("fps", 4))
+        cem_kw |= data_sampling(bounds)
     if args.hold_open and args.goals != "stages":
         p.error("--hold_open acts on the descend goal: use --goals stages")
     gstages = goal_stages(args.goals, args.final_stage)
@@ -283,7 +332,8 @@ def main():
             axis, close = aids(gstages[g - 1], args.fix_x, args.hold_grasp and args.goals != "final_only",
                                args.hold_open, args.hold_xy)  # fmt: skip
             plan = mpc.cem(context_frame=z0, context_pose=pose_t, goal_frame=goal_cache[(gsrc, gfile, grow)],
-                           world_model=step_fn, close_gripper=close, **(cem_kw | {"axis": axis}))[0]  # fmt: skip
+                           world_model=step_fn, close_gripper=close, objective=objective,
+                           **(cem_kw | {"axis": axis}))[0]  # fmt: skip
         rec["true"].append(true)
         rec["plan"].append(plan[0].float().cpu().numpy())
         rec["stage"].append(int(m["stages"][m["rows"] == r][0]))
@@ -322,7 +372,12 @@ def main():
         "step_rows": fstp,
         "row_stride": row_stride,
         "step_s": fstp / RATE_HZ,
-        "planner": cem_kw | {"source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1"},
+        "planner": cem_kw | {"source": "notebooks/utils/mpc_utils.py::cem; paper: 800 samples, 10 steps, horizon 1",
+                             "objective": objective.__name__,
+                             "context_window": JEPAWMS_WINDOW if args.protocol == "jepawms" else "all"},
+        "protocol": args.protocol,
+        "sampling": args.sampling,
+        "action_bounds": bounds,
         "checkpoint": args.checkpoint,
         "archive": args.archive,
         "goal_archive": args.goal_archive,

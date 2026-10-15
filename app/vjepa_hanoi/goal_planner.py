@@ -42,6 +42,12 @@
 #                       goals that is goal 1, which from the episode start also covers the approach: hover start only)
 #                       with --subgoals stages, --hold_grasp holds the gripper closed during lift, transit and insert
 # The rule per goal is paper_protocol_eval.aids, the same as offline.
+# Planner presets, off by default (planner deviations; the same settings as paper_protocol_eval --protocol/--sampling):
+#   --planner jepawms   the JEPA-WMs V-JEPA 2-AC planner: 300 x 15, top 10, horizon 3, no momentum, std 0.1, clip
+#                       +-0.1 / +-0.75, mean kept as a sample, L2 energy, predictor context = the last 2 frames
+#                       (rotation stays 0; the arm still executes one action and replans)
+#   --sampling data     samples kept inside the training actions' range at the model step: from --goal_archive, or
+#                       from the bundle (export_robot_bundle stores the bounds in goals.npz)
 #
 # Goals (POST /goal, an .npz body; optional fix_x () and hold_grasp () booleans override the server defaults):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -89,13 +95,17 @@ from app.vjepa_hanoi.hanoi import RATE_HZ, hanoi_states, step_rows
 from app.vjepa_hanoi.paper_protocol_eval import (
     FSTP,
     aids,
+    JEPAWMS,
+    JEPAWMS_WINDOW,
+    data_sampling,
     default_maxnorm,
     goal_rows,
     goal_stages,
     moves,
+    l2,
     time_schedule,
 )
-from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn, rollout
+from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn, rollout, windowed
 
 # fallback box when the goal archive has no measured_xyz: the six-task recordings (x 0.414-0.500, y -0.058-0.090,
 # z 0.057-0.192 m) padded by 5 mm, except below (the bottom ring's grasp height, 3 mm above the table)
@@ -124,8 +134,11 @@ def chunked(step_fn, n):
 class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
                  fix_x=False, hold_grasp=False, goal_bundle=None, predictor_chunk=0, planner_overrides=None,
-                 hold_open=False, hold_xy=False, subgoals="paper3"):
+                 hold_open=False, hold_xy=False, subgoals="paper3", planner="protocol", sampling="box"):
         self.planner_overrides = {k: v for k, v in (planner_overrides or {}).items() if v is not None}
+        if planner == "jepawms" and self.planner_overrides:
+            raise ValueError("--planner jepawms fixes horizon, samples, box and gripper std/clip")
+        self.planner_preset, self.sampling = planner, sampling
         with open(fname) as f:
             cfg = yaml.load(f, Loader=yaml.FullLoader)
         d = cfg["data"]
@@ -147,6 +160,9 @@ class GoalPlanner:
             m.requires_grad_(False)
         self.mpc = load_mpc_utils()
         self.step_fn = make_step_fn(self.predictor, self.tpf, self.norm, self.mpc.compute_new_pose)
+        self.objective = self.mpc.l1
+        if planner == "jepawms":
+            self.step_fn, self.objective = windowed(self.step_fn, JEPAWMS_WINDOW), l2
         self.predictor_chunk = predictor_chunk
         if predictor_chunk:
             self.step_fn = chunked(self.step_fn, predictor_chunk)
@@ -163,7 +179,6 @@ class GoalPlanner:
         self.protocol = protocol
         self.defaults = {"fix_x": bool(fix_x), "hold_grasp": bool(hold_grasp), "hold_open": bool(hold_open),
                          "hold_xy": bool(hold_xy), "subgoals": subgoals}  # fmt: skip
-        self.set_options(**self.defaults)
         self.final_stage = final_stage
         self.goal_archive = goal_archive
         self.max_step = max_speed * self.step_s
@@ -189,6 +204,22 @@ class GoalPlanner:
                                  f"{self.fstp} rows (data.fps of {fname})")  # fmt: skip
             self.box = (b["box_min"], b["box_max"], f"training data of {str(b['goal_archive'])} (bundle)")
         self.goal_bundle = goal_bundle
+        self.action_bounds = None
+        if sampling == "data":
+            if self.bundle is not None:
+                if "action_bounds_json" not in self.bundle_data:
+                    raise ValueError("this bundle has no action bounds: re-export it (export_robot_bundle --goals_only)")
+                self.action_bounds = json.loads(str(self.bundle_data["action_bounds_json"]))
+            elif goal_archive is not None:
+                from app.vjepa_hanoi.action_bounds import action_bounds
+
+                self.action_bounds = action_bounds(goal_archive, d.get("fps", 4))
+            else:
+                raise ValueError("--sampling data needs --goal_archive or --goal_bundle")
+            if int(self.action_bounds["step_rows"]) != self.fstp:
+                raise ValueError(f"action bounds are for {self.action_bounds['step_rows']}-row steps, the model's "
+                                 f"step is {self.fstp} rows")  # fmt: skip
+        self.set_options(**self.defaults)
         self.schedule_now = None
         self.goals = []  # goal latents in order; /plan picks one by goal_index (default: the last)
         self.goal_desc = None
@@ -209,7 +240,11 @@ class GoalPlanner:
         base = dict(PLANNERS[self.protocol])
         if self.fstp != FSTP:  # a model trained at another fps: the same speed box per step (default_maxnorm)
             base["maxnorm"] = default_maxnorm(self.fstp)
+        if self.planner_preset == "jepawms":  # its fixed 0.1 box, not scaled with the step
+            base = dict(JEPAWMS)
         self.cem_kw = base | self.planner_overrides  # --rollout / --samples / --maxnorm etc., if given
+        if self.sampling == "data":
+            self.cem_kw |= data_sampling(self.action_bounds)
         if fix_x:  # disclosed deviation: x stays on the peg line in the play data, so a play model cannot learn it
             self.cem_kw["axis"] = {0: 0.0}  # the repo planner's own option for holding an action dimension
 
@@ -354,7 +389,7 @@ class GoalPlanner:
         torch.manual_seed(seed)
         with self._autocast():
             plan = self.mpc.cem(context_frame=z0, context_pose=s, goal_frame=goal, world_model=self.step_fn,
-                                close_gripper=close, **cem_kw)[0].float()  # fmt: skip
+                                close_gripper=close, objective=self.objective, **cem_kw)[0].float()  # fmt: skip
             final = rollout(self.step_fn, z0, s, plan[None]).float()
         a = plan[0].cpu().numpy()  # execute the first planned action, then replan
         # safety, after planning: clamp the target into the box, then cap the executed step at max_step
@@ -395,6 +430,8 @@ def serve(planner, host, port):
                 self._send(200, {"ok": True, "checkpoint": planner.checkpoint, "goal_archive": planner.goal_archive,
                                  "goal_bundle": planner.goal_bundle, "predictor_chunk": planner.predictor_chunk,
                                  "protocol": planner.protocol, "planner": planner.cem_kw, "options": planner.options,
+                                 "planner_preset": planner.planner_preset, "objective": planner.objective.__name__,
+                                 "sampling": planner.sampling, "action_bounds": planner.action_bounds,
                                  "max_step_m": planner.max_step, "step_rows": planner.fstp,
                                  "step_s": planner.step_s, "box": {"min": planner.box[0].tolist(),
                                  "max": planner.box[1].tolist(), "source": planner.box[2]}, "goal": planner.goal_desc,
@@ -460,6 +497,10 @@ def main():
                    help="deviation: stages = one goal per motion stage (default: the paper's three)")
     p.add_argument("--hold_open", action="store_true", help="task aid, off by default: gripper open, descend goal")
     p.add_argument("--hold_xy", action="store_true", help="task aid, off by default: x/y held, descend/grasp goals")
+    p.add_argument("--planner", choices=("protocol", "jepawms"), default="protocol",
+                   help="deviation: jepawms = the JEPA-WMs V-JEPA 2-AC planner settings (header)")
+    p.add_argument("--sampling", choices=("box", "data"), default="box",
+                   help="deviation: data = CEM samples inside the training actions' range (header)")
     args = p.parse_args()
     planner = GoalPlanner(args.fname, args.checkpoint, args.goal_archive, args.max_speed, args.protocol,
                           args.final_stage, args.fix_x, args.hold_grasp, args.goal_bundle,
@@ -467,7 +508,8 @@ def main():
                           planner_overrides={"rollout": args.rollout, "samples": args.samples,
                                              "gripper_std": args.gripper_std, "gripper_clip": args.gripper_clip,
                                              "maxnorm": args.maxnorm},
-                          hold_open=args.hold_open, hold_xy=args.hold_xy, subgoals=args.subgoals)  # fmt: skip
+                          hold_open=args.hold_open, hold_xy=args.hold_xy, subgoals=args.subgoals,
+                          planner=args.planner, sampling=args.sampling)  # fmt: skip
     serve(planner, args.host, args.port)
 
 

@@ -45,6 +45,14 @@ def cem(
     close_gripper=None,
     gripper_std=1.0,
     gripper_clip=0.75,
+    init_std=None,
+    lo=None,
+    hi=None,
+    include_mean=False,
+    exclusive_gripper=None,
+    gripper_feasible=False,
+    return_best=False,
+    round_gripper=0.25,
 ):
     """
     :param context_frame: [B=1, T=1, HW, D]
@@ -60,6 +68,16 @@ def cem(
     3. compute similarity of final states to goal_frames
     4. select topk samples and update mean and std using topk action trajs
     5. choose final action to be mean of distribution
+
+    Opt-in options (defaults: the behaviour above, unchanged), on the sampled [dx, dy, dz, gripper]:
+    init_std          initial std per dim (4 values) instead of [maxnorm] * 3 + [gripper_std]
+    lo, hi            per-dim clip box (4 values each) instead of +-maxnorm and +-gripper_clip
+    include_mean      sample 0 is the current mean (JEPA-WMs planner)
+    exclusive_gripper samples with |gripper| >= this move no xyz, the others change no gripper (the expert never
+                      moves while opening or closing)
+    gripper_feasible  clip the gripper change to what the rolled-forward closedness c allows: [-c, 1 - c]
+    return_best       return the best-scoring sample of the last iteration instead of the elite mean
+    round_gripper     final gripper values below this are zeroed (repo: 0.25; 0 turns it off)
     """
     context_frame = context_frame.repeat(samples, 1, 1, 1)  # Reshape to [S, 1, HW, D]
     goal_frame = goal_frame.repeat(samples, 1, 1, 1)  # Reshape to [S, 1, HW, D]
@@ -81,6 +99,11 @@ def cem(
         ],
         dim=-1,
     )
+    if init_std is not None:
+        std = torch.tensor(init_std, dtype=std.dtype, device=std.device).expand(rollout, 4).clone()
+    if lo is not None:
+        lo = torch.tensor(lo, dtype=std.dtype, device=std.device)
+        hi = torch.tensor(hi, dtype=std.dtype, device=std.device)
 
     for ax in axis.keys():
         mean[:, ax] = axis[ax]
@@ -93,10 +116,22 @@ def cem(
 
             # -- sample new action
             action_samples = torch.randn(samples, mean.size(1), device=mean.device) * std[h] + mean[h]
-            action_samples[:, :3] = torch.clip(action_samples[:, :3], min=-maxnorm, max=maxnorm)
-            action_samples[:, -1:] = torch.clip(action_samples[:, -1:], min=-gripper_clip, max=gripper_clip)
+            if include_mean:
+                action_samples[0] = mean[h]
+            if lo is None:
+                action_samples[:, :3] = torch.clip(action_samples[:, :3], min=-maxnorm, max=maxnorm)
+                action_samples[:, -1:] = torch.clip(action_samples[:, -1:], min=-gripper_clip, max=gripper_clip)
+            else:
+                action_samples = torch.maximum(torch.minimum(action_samples, hi), lo)
             for ax in axis.keys():
                 action_samples[:, ax] = axis[ax]
+            if gripper_feasible:  # before the move-or-grip split, so "open while open" becomes a move sample
+                c = pose_traj[:, -1, -1].to(action_samples.dtype)
+                action_samples[:, -1] = torch.minimum(torch.maximum(action_samples[:, -1], -c), 1.0 - c)
+            if exclusive_gripper is not None:
+                grip = action_samples[:, -1].abs() >= exclusive_gripper
+                action_samples[grip, :3] = 0.0
+                action_samples[~grip, -1] = 0.0
             action_samples = torch.cat(
                 [
                     action_samples[:, :3],
@@ -107,6 +142,8 @@ def cem(
             )[:, None]
             if close_gripper is not None and h >= close_gripper:
                 action_samples[:, :, -1] = 1.0
+            if gripper_feasible and close_gripper is not None and h >= close_gripper:  # held closed: close if open
+                action_samples[:, 0, -1] = 1.0 - pose_traj[:, -1, -1].to(action_samples.dtype)
 
             action_traj = (
                 torch.cat([action_traj, action_samples], dim=1) if action_traj is not None else action_samples
@@ -119,11 +156,14 @@ def cem(
 
         return action_traj, frame_traj
 
+    best = {}
+
     def select_topk_action_traj(final_state, goal_state, actions):
         """Get the topk action trajectories that bring us closest to goal"""
         sims = objective(final_state.flatten(1), goal_state.flatten(1))
         indices = sims.topk(topk, largest=False).indices
         selected_actions = actions[indices]
+        best["traj"] = actions[indices[0]]
         return selected_actions
 
     for step in tqdm(range(cem_steps), disable=True):
@@ -153,11 +193,12 @@ def cem(
 
         logger.info(f"new mean: {mean.sum(dim=0)} {std.sum(dim=0)}")
 
+    out = best["traj"][:, [0, 1, 2, 6]] if return_best else mean
     new_action = torch.cat(
         [
-            mean[..., :3],
+            out[..., :3],
             torch.zeros((rollout, 3), device=mean.device),
-            round_small_elements(mean[..., -1:], 0.25),
+            round_small_elements(out[..., -1:], round_gripper),
         ],
         dim=-1,
     )[None, :]
