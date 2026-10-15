@@ -14,12 +14,14 @@
 #   off path        nearest recorded frame > --max_snap_mm away (e.g. moved sideways near the rods)
 #   closed early    closed more than 15 mm above the grasp height (there is no recorded frame of that)
 #   dropped         opened again after a valid grasp
+# The executed position is clamped into goal_planner's workspace box (the goal archive's recorded positions, x/y and the
+# top padded by 5 mm, the bottom by 1 mm), so e.g. a step up at the hover stops 5 mm above the highest recorded pose.
 # Success: closed within 10 mm of the grasp height and 5 mm of the grasp position laterally, then lifted 30 mm with the
 # gripper closed. "grasp height/position" is the tool position at the demo's first closed row. Below the grasp height
 # the arm's box clamps (lowest recorded height - 1 mm); here the overshoot is reported (lowest planned height).
 # Settings (SETTINGS below; labels as in offline.sbatch): base_h1 (the paper protocol, B), cat_h1, stages_h1,
 # cat_stages_h1, cat36_stages_h1, data_stages_h1 (P), and with aids (A, paper_protocol_eval.aids per goal stage):
-# *_fixx_* (x held at 0: from the hover x never has to move), aid_*_xy_* (hold_xy + hold_grasp).
+# *_fixx_* (x held at 0: from the hover x never has to move), aid_*_xy_* (hold_xy + hold_grasp), aid_*_xxy_* (all three).
 import argparse
 import json
 import time
@@ -51,12 +53,14 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
     "cat36_stages_fixx_h1": ("stages", "cat", 36.0, OFF | {"fix_x": True}),  # x never has to move
     "aid_cat_stages_xy_h1": ("stages", "cat", None, OFF | {"hold_xy": True, "hold_grasp": True}),
     "aid_cat36_stages_xy_h1": ("stages", "cat", 36.0, OFF | {"hold_xy": True, "hold_grasp": True}),
+    "aid_cat_stages_xxy_h1": ("stages", "cat", None, OFF | {"fix_x": True, "hold_xy": True, "hold_grasp": True}),
+    "aid_cat36_stages_xxy_h1": ("stages", "cat", 36.0, OFF | {"fix_x": True, "hold_xy": True, "hold_grasp": True}),
 }
 
 
-def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_mm=15.0):
+def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_mm=15.0, box=None):
     """One held-out move from its hover (header). plan_step(raw row of the shown frame, 7-D pose, goal index) -> the
-    planned 7-D action."""
+    planned 7-D action. box (lo, hi): the executed position is clamped into it, as goal_planner does."""
     rows = m["rows"][(m["stages"] >= 2) & (m["stages"] <= 6)]
     rows = np.arange(rows.min(), rows.max() + 1)  # every raw row of the approach .. transit
     st = hanoi_states(h["state"][rows].astype(np.float64), np.repeat(h["proprio"][rows, 6][:, None], 8, 1))
@@ -97,7 +101,7 @@ def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_m
         if closed and not now_closed:
             outcome = "dropped" if grasped else "reopened"
             break
-        xyz = xyz + a[:3]
+        xyz = xyz + a[:3] if box is None else np.clip(xyz + a[:3], box[0], box[1])
         lowest = min(lowest, xyz[2])
         closed = now_closed
         if closed and grasped and xyz[2] - grasp_xyz[2] >= 0.030:
@@ -150,7 +154,10 @@ def main():
     train_moves, train_paths, _ = moves(args.goal_archive)
     test_moves, test_paths, _ = moves(args.archive)
     codebook = bounds = None
-    results = {"checkpoint": args.checkpoint, "fname": args.fname, "step_rows": fstp, "settings": {}}
+    xyz = np.load(args.goal_archive)["measured_xyz"]  # goal_planner's workspace box (the training data, padded)
+    box = (xyz.min(0) - np.array([0.005, 0.005, 0.001]), xyz.max(0) + 0.005)
+    results = {"checkpoint": args.checkpoint, "fname": args.fname, "step_rows": fstp, "settings": {},
+               "box_mm": [(box[0] * 1e3).round(1).tolist(), (box[1] * 1e3).round(1).tolist()]}
     for name in args.settings.split(","):
         goals, sampling, cat_max_mm, aid = SETTINGS[name]
         gstages = goal_stages(goals, 8)
@@ -190,7 +197,7 @@ def main():
                                    close_gripper=close, objective=mpc.l1, **(cem_kw | {"axis": axis})
                                    )[0][0].float().cpu().numpy()  # fmt: skip
 
-            case = replay_case(m, h, fstp, reach, gstages, plan_step, args.max_steps, args.max_snap_mm)
+            case = replay_case(m, h, fstp, reach, gstages, plan_step, args.max_steps, args.max_snap_mm, box)
             h.close()
             cases.append({"transition": m["transition"]} | case)
             print(f"{name} {m['transition']}: {case['outcome']} in {case['steps']} steps "
@@ -200,8 +207,8 @@ def main():
         print(f"== {name}: success {n_ok}/{len(cases)} ({(time.time() - t0) / 60:.1f} min)", flush=True)
         results["settings"][name] = {"goals": goals, "sampling": sampling, "cat_max_mm": cat_max_mm, "aids": aid,
                                      "success": n_ok, "cases": cases}  # fmt: skip
-    with open(args.out, "w") as f:
-        json.dump(results, f, indent=1)
+        with open(args.out, "w") as f:  # after every setting
+            json.dump(results, f, indent=1)
 
 
 if __name__ == "__main__":
