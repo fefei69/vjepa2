@@ -90,6 +90,17 @@ def action_codebook(archive, fps, k_move=48, moving_mm=5.0, grip=0.5, seed=0):
             "actions": int(len(a)), "clips": clips}
 
 
+def limit_codebook(cb, max_step_m):
+    """The codebook without the moving codes longer than max_step_m (|xyz|, metres); stay/close/open are kept. For a
+    planner whose executed steps are capped (goal_planner --max_speed): it then only plans steps it will execute."""
+    keep = [i for i, c in enumerate(cb["codes"]) if np.linalg.norm(c[:3]) <= max_step_m + 1e-9]
+    out = dict(cb)
+    for k in ("codes", "prior", "names"):
+        out[k] = [cb[k][i] for i in keep]
+    out["max_step_m"] = float(max_step_m)
+    return out
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--archive", required=True, help="training split .npz")

@@ -49,7 +49,9 @@
 #   --sampling data     samples kept inside the training actions' range at the model step: from --goal_archive, or
 #                       from the bundle (export_robot_bundle stores the bounds in goals.npz)
 #   --sampling cat      categorical planning over a codebook of training actions (stay, close, open, 48 k-means moves;
-#                       paper_protocol_eval header), from --goal_archive or the bundle
+#                       paper_protocol_eval header), from --goal_archive or the bundle; codes longer than the step
+#                       cap (--max_speed x the model step) are dropped, so every planned step executes unscaled
+#                       (fps 1 on the arm: --max_speed 0.036 keeps the 36 mm rule and the codes up to 36 mm)
 #
 # Goals (POST /goal, an .npz body; optional fix_x () and hold_grasp () booleans override the server defaults):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -221,6 +223,14 @@ class GoalPlanner:
             if int(self.codebook["step_rows"]) != self.fstp:
                 raise ValueError(f"the codebook is for {self.codebook['step_rows']}-row steps, the model's step is "
                                  f"{self.fstp} rows")  # fmt: skip
+            # plan only steps the safety cap below executes unscaled (at fps 4 every code is shorter than the cap;
+            # at fps 1 with --max_speed 0.036 this keeps the codes of at most 36 mm)
+            from app.vjepa_hanoi.action_bounds import limit_codebook
+
+            n_codes = len(self.codebook["codes"])
+            self.codebook = limit_codebook(self.codebook, self.max_step)
+            print(f"codebook: {len(self.codebook['codes'])} of {n_codes} codes within the "
+                  f"{self.max_step * 1e3:.1f} mm step cap")  # fmt: skip
         if sampling == "data":
             if self.bundle is not None:
                 if "action_bounds_json" not in self.bundle_data:
