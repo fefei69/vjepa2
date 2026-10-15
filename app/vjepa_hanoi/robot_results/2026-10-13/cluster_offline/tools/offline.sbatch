@@ -20,7 +20,8 @@
 #                                                        trained at data.fps 1; outputs get the prefix fps1_, rows
 #                                                        every 8 raw rows as for fps4, each planning a 1 s step) or
 #                                                        MODEL=jfps1 (run J: fps 1 from the JEPA-WMs corrected init, no
-#                                                        state token; prefix jfps1_); MODEL may list several models,
+#                                                        state token; prefix jfps1_) or MODEL=efps1 (fps 1, official
+#                                                        init, all expert moves; prefix efps1_); MODEL may list several models,
 #                                                        e.g. MODEL="jfps1 fps4", each run with the same SETTINGS;
 #                                                        STRIDE=n evaluates rows n raw rows apart (default: one model
 #                                                        step at fps 4, 8 rows for the fps-1 models)
@@ -41,6 +42,8 @@ model() {  # name -> CFG CKPT PFX DENSE
           CKPT=$K/A_firstmove_1fps_vitg_finetune_v1/best.pt; PFX=fps1_; DENSE="--row_stride 8" ;;
     jfps1) CFG=configs/train/vitg16/hanoi-firstmove-ac-ft-256px-8f-1fps-jepawms.yaml
            CKPT=$K/J_firstmove_1fps_vitg_finetune_v1/best.pt; PFX=jfps1_; DENSE="--row_stride 8" ;;
+    efps1) CFG=configs/train/vitg16/hanoi-expert6all-ac-ft-256px-8f-1fps.yaml
+           CKPT=$K/A_expert6all_1fps_vitg_finetune_v1/best.pt; PFX=efps1_; DENSE="--row_stride 8" ;;
     *) echo "unknown MODEL $1" >&2; exit 2 ;;
   esac
 }
