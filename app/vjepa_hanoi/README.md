@@ -210,6 +210,25 @@ robot machine's GPU; nothing runs on the cluster.
      the files that differ from it and a hash of that difference.
    - `app/vjepa_hanoi/serve.sbatch` runs the same server on a cluster GPU instead, reached over an ssh tunnel.
 
+**The setup that works offline** (`robot_results/2026-10-13/cluster_offline/RESULTS_2026-10-15.md`: 6/6 pick, 5/6
+whole move in the replay). It uses a different bundle and opt-in server flags, and it is not the paper baseline. The
+bundle is `robot_bundle_efps1`: E-1fps, 1 s steps, trained on all expert moves of the six tasks. The flags are:
+- manual stage subgoals;
+- each step is the best of 51 training actions;
+- no sideways step near the rods (the floor must equal the arm's low floor, or the runner refuses before any motion);
+- no step out of the box;
+- steps capped at 36 mm, schedule ×1.5.
+```bash
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python -m app.vjepa_hanoi.goal_planner --fname <bundle>/config.yaml \
+    --checkpoint <bundle>/weights.pt --goal_bundle <bundle>/goals.npz --protocol paper --subgoals stages \
+    --sampling cat --guard_floor_mm 166.13 --box_feasible --max_speed 0.036 --predictor_chunk 200 \
+    --host 127.0.0.1 --port 8766
+EXECUTE=1 PYTHONPATH=<tower_hanoi>:<vjepa2>:$PYTHONPATH python -m app.vjepa_hanoi.one_move_test --execute \
+    --variants stages --schedule_scale 1.5 --out runs/one_move_efps1_<date> --tower-hanoi <tower_hanoi>
+```
+Each step scores 51 actions, not 800 × 10 CEM samples. `--predictor_chunk 200` changes nothing at that size; it is
+there only for the 16 GB GPU.
+
 Before the arm moves, the runner refuses to start unless the robot host's tower_hanoi config matches the recordings:
 - the gripper opens to 0.034 (`open_fraction` 0.85 in `workspace.json`);
 - `wm-transform.json` is square_roi 151/90/360 → 224;
