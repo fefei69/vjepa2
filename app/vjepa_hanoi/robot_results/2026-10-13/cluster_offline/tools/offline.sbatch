@@ -21,7 +21,9 @@
 #                                                        every 8 raw rows as for fps4, each planning a 1 s step) or
 #                                                        MODEL=jfps1 (run J: fps 1 from the JEPA-WMs corrected init, no
 #                                                        state token; prefix jfps1_); MODEL may list several models,
-#                                                        e.g. MODEL="jfps1 fps4", each run with the same SETTINGS
+#                                                        e.g. MODEL="jfps1 fps4", each run with the same SETTINGS;
+#                                                        STRIDE=n evaluates rows n raw rows apart (default: one model
+#                                                        step at fps 4, 8 rows for the fps-1 models)
 #   sbatch --export=ALL,TASK=hover,MODEL=fps1 <this file> hover_probe only (for a model other than fps4)
 set -uo pipefail  # one failing setting does not stop the others
 REPO=/scratch/cw5167/workspace/vjepa2
@@ -43,6 +45,7 @@ model() {  # name -> CFG CKPT PFX DENSE
   esac
 }
 MODELS="${MODEL:-fps4}"
+stride() { if [ -n "${STRIDE:-}" ]; then DENSE="--row_stride ${STRIDE}"; fi; }
 model "${MODELS%% *}"
 mkdir -p "$OUT/probes" "$OUT/ppe"
 echo "job $SLURM_JOB_ID on $(hostname -s), commit $(git rev-parse --short HEAD), dirty: $(git status --porcelain | wc -l) files"
@@ -77,6 +80,9 @@ setting() {  # name -> paper_protocol_eval flags; label: B = paper baseline, P =
     data_h1) echo "--sampling data" ;;                     # samples inside the training actions' range
     data_stages_h3) echo "--sampling data --goals stages --rollout 3" ;;
     jw_data_stages) echo "--protocol jepawms --sampling data --goals stages" ;;
+    data_stages_h1) echo "--sampling data --goals stages" ;;
+    data_stages_h2) echo "--sampling data --goals stages --rollout 2" ;;
+    aid_data_stages_all_h2) echo "--sampling data --goals stages --hold_open --hold_xy --hold_grasp --rollout 2" ;;
     *) echo "unknown setting $1" >&2; exit 2 ;;
   esac
 }
@@ -95,7 +101,7 @@ elif [ "${TASK}" = ppe ]; then
   EVAL="--eval_stages 3,4"; TAG=descent
   if [ "${ROWS:-descent}" = all ]; then EVAL=""; TAG=all; fi
   for m in ${MODELS}; do
-    model "$m"
+    model "$m"; stride
     for s in ${SETTINGS}; do
       flags=$(setting "$s")
       echo "=== $m $s: $flags $EVAL"
