@@ -14,6 +14,7 @@
 #   off path        nearest recorded frame > --max_snap_mm away (e.g. moved sideways near the rods)
 #   closed early    closed more than 15 mm above the grasp height (there is no recorded frame of that)
 #   dropped         opened again after a valid grasp
+#   lateral guard   a step more than 3 mm sideways with an end below the low floor (166 mm): robot_io aborts the run
 # The executed position is clamped into goal_planner's workspace box (the goal archive's recorded positions, x/y and the
 # top padded by 5 mm, the bottom by 1 mm), so e.g. a step up at the hover stops 5 mm above the highest recorded pose.
 # Success: closed within 10 mm of the grasp height and 5 mm of the grasp position laterally, then lifted 30 mm with the
@@ -41,6 +42,8 @@ from app.vjepa_hanoi.paper_protocol_eval import (aids, data_sampling, default_ma
 from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn
 
 K = "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move"
+LOW_FLOOR_M = 0.16613  # robot_io: transit z - 25 mm (166.13 mm), Q-WM's low floor
+LOW_LATERAL_LIMIT_M = 0.003  # robot_io.LOW_LATERAL_LIMIT_M: a step more sideways with an end below the floor aborts
 OFF = {"fix_x": False, "hold_xy": False, "hold_grasp": False, "hold_open": False}
 SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.sbatch: aids (fix_x, hold_*) = A
     "base_h1": ("paper3", "box", None, OFF),
@@ -101,7 +104,11 @@ def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_m
         if closed and not now_closed:
             outcome = "dropped" if grasped else "reopened"
             break
-        xyz = xyz + a[:3] if box is None else np.clip(xyz + a[:3], box[0], box[1])
+        new = xyz + a[:3] if box is None else np.clip(xyz + a[:3], box[0], box[1])
+        if min(xyz[2], new[2]) < LOW_FLOOR_M and np.linalg.norm(new[:2] - xyz[:2]) > LOW_LATERAL_LIMIT_M:
+            outcome = "lateral guard"  # robot_io aborts this step before any motion
+            break
+        xyz = new
         lowest = min(lowest, xyz[2])
         closed = now_closed
         if closed and grasped and xyz[2] - grasp_xyz[2] >= 0.030:
