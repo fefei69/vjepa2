@@ -26,9 +26,9 @@
 #                                                        STRIDE=n evaluates rows n raw rows apart (default: one model
 #                                                        step at fps 4, 8 rows for the fps-1 models)
 #   sbatch --export=ALL,TASK=hover,MODEL=fps1 <this file> hover_probe only (for a model other than fps4)
-#   sbatch --export=ALL,TASK=replay,MODEL=fps1,SETTINGS="base_h1,cat_stages_h1" <this file>
+#   sbatch --export=ALL,TASK=replay,MODEL=fps1,SETTINGS="base_h1 cat_stages_h1" <this file>
 #                                                        descent_replay.py: closed loop from the hover on recorded frames
-#                                                        (SETTINGS comma-separated, its own names); -> replay/<model>_replay.json
+#                                                        (its own setting names); -> replay/<model>_replay.json
 set -uo pipefail  # one failing setting does not stop the others
 REPO=/scratch/cw5167/workspace/vjepa2
 K=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi
@@ -118,7 +118,7 @@ elif [ "${TASK}" = replay ]; then  # closed loop on recorded frames from the hov
   mkdir -p "$OUT/replay"
   for m in ${MODELS}; do
     model "$m"
-    "$PY" "$OUT/tools/descent_replay.py" --fname "$CFG" --checkpoint "$CKPT" --settings "${SETTINGS}" --max_steps 2 \
+    "$PY" "$OUT/tools/descent_replay.py" --fname "$CFG" --checkpoint "$CKPT" --settings "${SETTINGS// /,}" --max_steps 2 \
       --out "$OUT/replay/${m}_replay.json" 2>&1 | grep -v Warning
   done
 elif [ "${TASK}" = ppe ]; then

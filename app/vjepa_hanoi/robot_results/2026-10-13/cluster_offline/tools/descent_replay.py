@@ -17,8 +17,9 @@
 # Success: closed within 10 mm of the grasp height and 5 mm of the grasp position laterally, then lifted 30 mm with the
 # gripper closed. "grasp height/position" is the tool position at the demo's first closed row. Below the grasp height
 # the arm's box clamps (lowest recorded height - 1 mm); here the overshoot is reported (lowest planned height).
-# Settings: as offline.sbatch setting() (labels there): base_h1 (the paper protocol), cat_h1, stages_h1,
-# cat_stages_h1, cat36_stages_h1, data_stages_h1.
+# Settings (SETTINGS below; labels as in offline.sbatch): base_h1 (the paper protocol, B), cat_h1, stages_h1,
+# cat_stages_h1, cat36_stages_h1, data_stages_h1 (P), and with aids (A, paper_protocol_eval.aids per goal stage):
+# *_fixx_* (x held at 0: from the hover x never has to move), aid_*_xy_* (hold_xy + hold_grasp).
 import argparse
 import json
 import time
@@ -33,18 +34,23 @@ from app.vjepa_hanoi.ac_step import encode_clips
 from app.vjepa_hanoi.action_bounds import action_bounds, action_codebook, limit_codebook
 from app.vjepa_hanoi.eval import build_models, strip_prefixes
 from app.vjepa_hanoi.hanoi import hanoi_states, step_rows
-from app.vjepa_hanoi.paper_protocol_eval import (data_sampling, default_maxnorm, goal_rows, goal_stages, moves,
+from app.vjepa_hanoi.paper_protocol_eval import (aids, data_sampling, default_maxnorm, goal_rows, goal_stages, moves,
                                                  time_schedule)  # fmt: skip
 from app.vjepa_hanoi.plan_eval import load_mpc_utils, make_step_fn
 
 K = "/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/data/expert6_first_move"
-SETTINGS = {  # name -> (goals, sampling, cat_max_mm)
-    "base_h1": ("paper3", "box", None),
-    "cat_h1": ("paper3", "cat", None),
-    "stages_h1": ("stages", "box", None),
-    "cat_stages_h1": ("stages", "cat", None),
-    "cat36_stages_h1": ("stages", "cat", 36.0),
-    "data_stages_h1": ("stages", "data", None),
+OFF = {"fix_x": False, "hold_xy": False, "hold_grasp": False, "hold_open": False}
+SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.sbatch: aids (fix_x, hold_*) = A
+    "base_h1": ("paper3", "box", None, OFF),
+    "cat_h1": ("paper3", "cat", None, OFF),
+    "stages_h1": ("stages", "box", None, OFF),
+    "cat_stages_h1": ("stages", "cat", None, OFF),
+    "cat36_stages_h1": ("stages", "cat", 36.0, OFF),
+    "data_stages_h1": ("stages", "data", None, OFF),
+    "cat_stages_fixx_h1": ("stages", "cat", None, OFF | {"fix_x": True}),  # x held at 0 (A); from the hover
+    "cat36_stages_fixx_h1": ("stages", "cat", 36.0, OFF | {"fix_x": True}),  # x never has to move
+    "aid_cat_stages_xy_h1": ("stages", "cat", None, OFF | {"hold_xy": True, "hold_grasp": True}),
+    "aid_cat36_stages_xy_h1": ("stages", "cat", 36.0, OFF | {"hold_xy": True, "hold_grasp": True}),
 }
 
 
@@ -146,7 +152,7 @@ def main():
     codebook = bounds = None
     results = {"checkpoint": args.checkpoint, "fname": args.fname, "step_rows": fstp, "settings": {}}
     for name in args.settings.split(","):
-        goals, sampling, cat_max_mm = SETTINGS[name]
+        goals, sampling, cat_max_mm, aid = SETTINGS[name]
         gstages = goal_stages(goals, 8)
         n_goals = len(gstages)
         cem_kw = dict(rollout=1, samples=800, topk=10, cem_steps=10, momentum_mean=0.15, momentum_std=0.15,
@@ -175,12 +181,14 @@ def main():
             h = h5py.File(test_paths[m["file"]], "r")
 
             def plan_step(row, s7, g):
+                axis, close = aids(gstages[g - 1], aid["fix_x"], aid["hold_grasp"], aid["hold_open"], aid["hold_xy"])
                 z0 = encode(h["pixels"][row])
                 pose = torch.as_tensor(s7[None, None], dtype=torch.float32, device=device)
                 with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype,
                                                      enabled=dtype != torch.float32):  # fmt: skip
                     return plan_fn(context_frame=z0, context_pose=pose, goal_frame=goal_z[g - 1], world_model=step_fn,
-                                   objective=mpc.l1, **cem_kw)[0][0].float().cpu().numpy()  # fmt: skip
+                                   close_gripper=close, objective=mpc.l1, **(cem_kw | {"axis": axis})
+                                   )[0][0].float().cpu().numpy()  # fmt: skip
 
             case = replay_case(m, h, fstp, reach, gstages, plan_step, args.max_steps, args.max_snap_mm)
             h.close()
@@ -190,7 +198,7 @@ def main():
                   f"lowest {case['lowest_below_grasp_mm']:+.1f} mm vs grasp", flush=True)  # fmt: skip
         n_ok = sum(c["outcome"] == "success" for c in cases)
         print(f"== {name}: success {n_ok}/{len(cases)} ({(time.time() - t0) / 60:.1f} min)", flush=True)
-        results["settings"][name] = {"goals": goals, "sampling": sampling, "cat_max_mm": cat_max_mm,
+        results["settings"][name] = {"goals": goals, "sampling": sampling, "cat_max_mm": cat_max_mm, "aids": aid,
                                      "success": n_ok, "cases": cases}  # fmt: skip
     with open(args.out, "w") as f:
         json.dump(results, f, indent=1)
