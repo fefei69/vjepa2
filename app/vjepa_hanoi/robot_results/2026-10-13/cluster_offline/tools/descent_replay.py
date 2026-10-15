@@ -70,6 +70,13 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
                                             OFF | {"guard": True, "hold_grasp": True, "exec_cap_mm": 36.0}),
     "aid_cat_stages_xy_cap36_h1": ("stages", "cat", None, OFF | {"hold_xy": True, "hold_grasp": True, "exec_cap_mm": 36.0}),
     "aid_cat36_stages_xxy_h1": ("stages", "cat", 36.0, OFF | {"fix_x": True, "hold_xy": True, "hold_grasp": True}),
+    # S: + goal_planner --box_feasible (no step that ends outside the workspace box, which the server would clamp)
+    "cat_stages_guard_box_h1": ("stages", "cat", None, OFF | {"guard": True, "box": True}),
+    "cat_stages_guard_box_cap36_h1": ("stages", "cat", None, OFF | {"guard": True, "box": True, "exec_cap_mm": 36.0}),
+    "aid_cat_stages_guard_box_fixx_h1": ("stages", "cat", None, OFF | {"guard": True, "box": True, "fix_x": True}),
+    "aid_cat_stages_guard_box_fixx_cap36_h1": ("stages", "cat", None,
+                                               OFF | {"guard": True, "box": True, "fix_x": True, "exec_cap_mm": 36.0}),
+    "aid_cat_stages_guard_fixx_h1": ("stages", "cat", None, OFF | {"guard": True, "fix_x": True}),
 }
 
 
@@ -219,6 +226,8 @@ def main():
             plan_fn = mpc.cem_categorical
             if aid.get("guard"):
                 cem_kw["low_floor"] = LOW_FLOOR_M
+            if aid.get("box"):  # goal_planner --box_feasible
+                cem_kw["box"] = (box[0].tolist(), box[1].tolist())
         cases = []
         t0 = time.time()
         for m in test_moves:

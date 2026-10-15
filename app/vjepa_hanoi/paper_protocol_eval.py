@@ -224,6 +224,8 @@ def main():
                    help="--sampling cat: drop moving codes longer than this (as goal_planner does at its step cap)")
     p.add_argument("--guard_floor_mm", type=float, default=None,
                    help="--sampling cat: rank only steps the arm's low-lateral guard executes (header)")
+    p.add_argument("--box_feasible", action="store_true",
+                   help="--sampling cat: rank only steps ending inside goal_planner's workspace box")
     p.add_argument("--eval_stages", default="", help="evaluate only rows in these motion stages, e.g. 3,4")
     p.add_argument("--predictor_chunk", type=int, default=0, help="CEM samples per predictor call (memory only)")
     p.add_argument("--out", required=True)
@@ -294,6 +296,11 @@ def main():
         if args.sampling != "cat":
             p.error("--guard_floor_mm is a --sampling cat option")
         cem_kw["low_floor"] = args.guard_floor_mm / 1e3
+    if args.box_feasible:
+        if args.sampling != "cat":
+            p.error("--box_feasible is a --sampling cat option")
+        xyz = np.load(args.goal_archive)["measured_xyz"]  # goal_planner's box: the recorded range, padded
+        cem_kw["box"] = ((xyz.min(0) - [0.005, 0.005, 0.001]).tolist(), (xyz.max(0) + 0.005).tolist())
     if args.hold_open and args.goals != "stages":
         p.error("--hold_open acts on the descend goal: use --goals stages")
     gstages = goal_stages(args.goals, args.final_stage)

@@ -226,6 +226,7 @@ def cem_categorical(
     gripper_feasible=True,
     low_floor=None,
     lateral_limit=0.003,
+    box=None,
     **unused,
 ):
     """
@@ -239,11 +240,14 @@ def cem_categorical(
     axis (held dims), close_gripper (held closed from step h) and gripper_feasible (change within [-c, 1 - c] of the
     imagined closedness c) are applied to each code as in cem. low_floor (m, default off): a step more than
     lateral_limit sideways with an end below this height (the imagined z) scores +inf, i.e. the planner only ranks
-    steps a low-lateral guard (robot_io) would execute. Returns the best-scoring sequence [1, rollout, 7].
+    steps a low-lateral guard (robot_io) would execute. box ((lo, hi) xyz in m, default off): a step whose imagined
+    end leaves the box scores +inf (the executor would clamp it). Returns the best-scoring sequence [1, rollout, 7].
     """
     dev = context_frame.device
     codes = torch.as_tensor(codebook, dtype=torch.float32, device=dev)
     K = codes.size(0)
+    if box is not None:
+        box_lo, box_hi = (torch.as_tensor(b, dtype=torch.float32, device=dev) for b in box)
 
     def score(idx):
         n = idx.size(0)
@@ -256,6 +260,9 @@ def cem_categorical(
             if low_floor is not None:
                 z = poses[:, -1, 2].to(a.dtype)
                 blocked |= (torch.minimum(z, z + a[:, 2]) < low_floor) & (a[:, :2].norm(dim=-1) > lateral_limit)
+            if box is not None:
+                end = poses[:, -1, :3].to(a.dtype) + a[:, :3]
+                blocked |= ((end < box_lo) | (end > box_hi)).any(dim=-1)
             c = poses[:, -1, -1].to(a.dtype)
             if gripper_feasible:
                 a[:, 3] = torch.minimum(torch.maximum(a[:, 3], -c), 1.0 - c)

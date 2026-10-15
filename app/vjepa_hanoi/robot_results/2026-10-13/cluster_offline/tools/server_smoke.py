@@ -32,12 +32,16 @@ def main():
     p.add_argument("--max_speed", type=float, default=0.10)
     p.add_argument("--hold_xy", action="store_true")
     p.add_argument("--hold_grasp", action="store_true")
+    p.add_argument("--fix_x", action="store_true")
+    p.add_argument("--box_feasible", action="store_true")
+    p.add_argument("--until", choices=("lift", "release"), default="lift")
     p.add_argument("--out", required=True)
     args = p.parse_args()
     b = args.bundle
     planner = GoalPlanner(f"{b}/config.yaml", f"{b}/weights.pt", goal_bundle=f"{b}/goals.npz", max_speed=args.max_speed,
                           protocol="paper", sampling=args.sampling, guard_floor_mm=args.guard_floor_mm,
-                          hold_xy=args.hold_xy, hold_grasp=args.hold_grasp, subgoals="stages")  # fmt: skip
+                          hold_xy=args.hold_xy, hold_grasp=args.hold_grasp, fix_x=args.fix_x, subgoals="stages",
+                          box_feasible=args.box_feasible)  # fmt: skip
     gstages = goal_stages("stages", 8)
     test_moves, test_paths, _ = moves(args.archive)
     out = {"bundle": b, "args": vars(args), "max_step_m": planner.max_step, "cases": []}
@@ -55,7 +59,7 @@ def main():
             a[:3] = np.asarray(r["executed_delta"])  # the server's executed step (box clamp + --max_speed cap)
             return a
 
-        case = replay_case(m, h, planner.fstp, reach, gstages, plan_step, 2.0, 15.0)
+        case = replay_case(m, h, planner.fstp, reach, gstages, plan_step, 2.0, 15.0, until=args.until)
         h.close()
         case["server_replies"] = [{k: v for k, v in r.items() if k in ("action", "executed_delta", "safety_scaled",
                                    "gripper_intent", "goal_index", "axis_held")} for r in last.values()]  # fmt: skip

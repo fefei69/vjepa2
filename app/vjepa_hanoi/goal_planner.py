@@ -53,7 +53,8 @@
 #                       the cap (--max_speed x the model step) is scaled down when executed, as for every planner
 #                       (--limit_codes_to_cap instead drops those codes; offline it fails at fps 1 with 36 mm);
 #                       --guard_floor_mm 166.13 (robot_io's low floor) also drops, per step, the codes more than 3 mm
-#                       sideways with an end below that height, which the low-lateral guard would abort
+#                       sideways with an end below that height, which the low-lateral guard would abort;
+#                       --box_feasible drops the codes whose end leaves the workspace box (the clamp would undo them)
 #
 # Goals (POST /goal, an .npz body; optional fix_x () and hold_grasp () booleans override the server defaults):
 #   goal_image (224,224,3)      one photo from the same camera after the square_roi transform
@@ -141,10 +142,13 @@ class GoalPlanner:
     def __init__(self, fname, checkpoint, goal_archive=None, max_speed=0.10, protocol="plain", final_stage=8,
                  fix_x=False, hold_grasp=False, goal_bundle=None, predictor_chunk=0, planner_overrides=None,
                  hold_open=False, hold_xy=False, subgoals="paper3", planner="protocol", sampling="box",
-                 guard_floor_mm=None, limit_codes_to_cap=False):
+                 guard_floor_mm=None, limit_codes_to_cap=False, box_feasible=False):
         if guard_floor_mm is not None and sampling != "cat":
             raise ValueError("--guard_floor_mm is a --sampling cat option")
         self.guard_floor = None if guard_floor_mm is None else guard_floor_mm / 1e3
+        if box_feasible and sampling != "cat":
+            raise ValueError("--box_feasible is a --sampling cat option")
+        self.box_feasible = box_feasible
         self.planner_overrides = {k: v for k, v in (planner_overrides or {}).items() if v is not None}
         if planner == "jepawms" and self.planner_overrides:
             raise ValueError("--planner jepawms fixes horizon, samples, box and gripper std/clip")
@@ -282,6 +286,8 @@ class GoalPlanner:
                 "codebook": self.codebook["codes"], "code_prior": self.codebook["prior"], "prior_temp": 0.5}
             if self.guard_floor is not None:  # rank only steps robot_io's low-lateral guard executes
                 self.cem_kw["low_floor"] = self.guard_floor
+            if self.box_feasible:  # rank only steps that end inside the workspace box (the clamp below)
+                self.cem_kw["box"] = (np.asarray(self.box[0]).tolist(), np.asarray(self.box[1]).tolist())
             if fix_x:
                 self.cem_kw["axis"] = {0: 0.0}
         if fix_x:  # disclosed deviation: x stays on the peg line in the play data, so a play model cannot learn it
@@ -545,6 +551,8 @@ def main():
                    help="--sampling cat: the arm's low floor in mm (robot_io: workspace transit_z - 25 mm, 166.13 on "
                         "2026-10-13): steps more than 3 mm sideways with an end below it are not planned (the guard "
                         "would abort them; the guard itself stays on)")
+    p.add_argument("--box_feasible", action="store_true",
+                   help="--sampling cat: do not plan steps that end outside the workspace box (they would be clamped)")
     p.add_argument("--limit_codes_to_cap", action="store_true",
                    help="--sampling cat: drop codes longer than the step cap instead of scaling the executed step")
     args = p.parse_args()
@@ -556,7 +564,7 @@ def main():
                                              "maxnorm": args.maxnorm},
                           hold_open=args.hold_open, hold_xy=args.hold_xy, subgoals=args.subgoals,
                           planner=args.planner, sampling=args.sampling, guard_floor_mm=args.guard_floor_mm,
-                          limit_codes_to_cap=args.limit_codes_to_cap)  # fmt: skip
+                          limit_codes_to_cap=args.limit_codes_to_cap, box_feasible=args.box_feasible)  # fmt: skip
     serve(planner, args.host, args.port)
 
 
