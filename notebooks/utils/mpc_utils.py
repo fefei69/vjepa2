@@ -224,6 +224,8 @@ def cem_categorical(
     axis={},
     close_gripper=None,
     gripper_feasible=True,
+    low_floor=None,
+    lateral_limit=0.003,
     **unused,
 ):
     """
@@ -235,7 +237,9 @@ def cem_categorical(
       (0: uniform; 1: the codes' training frequencies), updated toward the top-k elite frequencies
       (p <- (1 - alpha) p + alpha f), with the current mode kept as sample 0.
     axis (held dims), close_gripper (held closed from step h) and gripper_feasible (change within [-c, 1 - c] of the
-    imagined closedness c) are applied to each code as in cem. Returns the best-scoring sequence [1, rollout, 7].
+    imagined closedness c) are applied to each code as in cem. low_floor (m, default off): a step more than
+    lateral_limit sideways with an end below this height (the imagined z) scores +inf, i.e. the planner only ranks
+    steps a low-lateral guard (robot_io) would execute. Returns the best-scoring sequence [1, rollout, 7].
     """
     dev = context_frame.device
     codes = torch.as_tensor(codebook, dtype=torch.float32, device=dev)
@@ -244,10 +248,14 @@ def cem_categorical(
     def score(idx):
         n = idx.size(0)
         frames, poses, acts = context_frame.repeat(n, 1, 1, 1), context_pose.repeat(n, 1, 1), None
+        blocked = torch.zeros(n, dtype=torch.bool, device=dev)
         for h in range(rollout):
             a = codes[idx[:, h]].clone()
             for ax in axis.keys():
                 a[:, ax] = axis[ax]
+            if low_floor is not None:
+                z = poses[:, -1, 2].to(a.dtype)
+                blocked |= (torch.minimum(z, z + a[:, 2]) < low_floor) & (a[:, :2].norm(dim=-1) > lateral_limit)
             c = poses[:, -1, -1].to(a.dtype)
             if gripper_feasible:
                 a[:, 3] = torch.minimum(torch.maximum(a[:, 3], -c), 1.0 - c)
@@ -257,7 +265,8 @@ def cem_categorical(
             acts = a if acts is None else torch.cat([acts, a], dim=1)
             next_frame, next_pose = world_model(frames, acts, poses)
             frames, poses = torch.cat([frames, next_frame], dim=1), torch.cat([poses, next_pose], dim=1)
-        return objective(frames[:, -1].flatten(1), goal_frame.flatten(1)).float(), acts
+        energy = objective(frames[:, -1].flatten(1), goal_frame.flatten(1)).float()
+        return energy.masked_fill(blocked, float("inf")), acts
 
     def score_chunked(idx):
         out = [score(chunk) for chunk in idx.split(samples)]

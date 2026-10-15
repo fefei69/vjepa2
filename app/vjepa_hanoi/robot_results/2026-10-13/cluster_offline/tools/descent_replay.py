@@ -22,7 +22,8 @@
 # the arm's box clamps (lowest recorded height - 1 mm); here the overshoot is reported (lowest planned height).
 # Settings (SETTINGS below; labels as in offline.sbatch): base_h1 (the paper protocol, B), cat_h1, stages_h1,
 # cat_stages_h1, cat36_stages_h1, data_stages_h1 (P), and with aids (A, paper_protocol_eval.aids per goal stage):
-# *_fixx_* (x held at 0: from the hover x never has to move), aid_*_xy_* (hold_xy + hold_grasp), aid_*_xxy_* (all three).
+# *_fixx_* (x held at 0: from the hover x never has to move), aid_*_xy_* (hold_xy + hold_grasp), aid_*_xxy_* (all three);
+# *_guard_* (P): goal_planner --guard_floor_mm 166.13, the categorical planner skips steps the low-lateral guard aborts.
 import argparse
 import json
 import time
@@ -57,6 +58,11 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
     "aid_cat_stages_xy_h1": ("stages", "cat", None, OFF | {"hold_xy": True, "hold_grasp": True}),
     "aid_cat36_stages_xy_h1": ("stages", "cat", 36.0, OFF | {"hold_xy": True, "hold_grasp": True}),
     "aid_cat_stages_xxy_h1": ("stages", "cat", None, OFF | {"fix_x": True, "hold_xy": True, "hold_grasp": True}),
+    # P: --guard_floor_mm 166.13, only steps the arm's low-lateral guard executes are ranked (no task knowledge)
+    "cat_stages_guard_h1": ("stages", "cat", None, OFF | {"guard": True}),
+    "cat36_stages_guard_h1": ("stages", "cat", 36.0, OFF | {"guard": True}),
+    "aid_cat_stages_guard_grasp_h1": ("stages", "cat", None, OFF | {"guard": True, "hold_grasp": True}),
+    "cat_stages_guard_h2": ("stages", "cat", None, OFF | {"guard": True}, 2),
     "aid_cat36_stages_xxy_h1": ("stages", "cat", 36.0, OFF | {"fix_x": True, "hold_xy": True, "hold_grasp": True}),
 }
 
@@ -166,10 +172,11 @@ def main():
     results = {"checkpoint": args.checkpoint, "fname": args.fname, "step_rows": fstp, "settings": {},
                "box_mm": [(box[0] * 1e3).round(1).tolist(), (box[1] * 1e3).round(1).tolist()]}
     for name in args.settings.split(","):
-        goals, sampling, cat_max_mm, aid = SETTINGS[name]
+        goals, sampling, cat_max_mm, aid, *horizon = SETTINGS[name]
+        aid = OFF | aid
         gstages = goal_stages(goals, 8)
         n_goals = len(gstages)
-        cem_kw = dict(rollout=1, samples=800, topk=10, cem_steps=10, momentum_mean=0.15, momentum_std=0.15,
+        cem_kw = dict(rollout=horizon[0] if horizon else 1, samples=800, topk=10, cem_steps=10, momentum_mean=0.15, momentum_std=0.15,
                       maxnorm=default_maxnorm(fstp))  # fmt: skip
         plan_fn = mpc.cem
         if sampling == "data":
@@ -181,6 +188,8 @@ def main():
             cem_kw = {k: cem_kw[k] for k in ("rollout", "samples", "cem_steps", "topk")} | {
                 "codebook": cb["codes"], "code_prior": cb["prior"], "prior_temp": 0.5}
             plan_fn = mpc.cem_categorical
+            if aid.get("guard"):
+                cem_kw["low_floor"] = LOW_FLOOR_M
         cases = []
         t0 = time.time()
         for m in test_moves:

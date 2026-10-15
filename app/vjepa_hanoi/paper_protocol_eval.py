@@ -67,7 +67,9 @@
 #     (exact search: H=1, and H=2 with 51 codes); otherwise categorical CEM (samples / iterations / top-k from
 #     --protocol) starting from the codes' training frequencies ** --cat_temp. Gripper feasibility as for data.
 #     --cat_max_mm drops the moving codes longer than that (the arm's 36 mm step rule at fps 1; goal_planner does
-#     this at its --max_speed step cap).
+#     this at its --max_speed step cap). --guard_floor_mm 166.13 (robot_io's low floor) scores a step more than 3 mm
+#     sideways with an end below that height as infeasible, so the planner only ranks steps the arm's low-lateral guard
+#     executes instead of aborting the run (mpc_utils.cem_categorical low_floor).
 # --eval_stages 3,4 evaluates only rows in those motion stages (row selection, not a planner change): the arm runner
 # starts at the hover, so the approach rows (stages 1-2) do not apply to it.
 
@@ -220,6 +222,8 @@ def main():
                    help="--sampling cat, categorical CEM: initial distribution = code frequency ** temp (0 uniform)")
     p.add_argument("--cat_max_mm", type=float, default=None,
                    help="--sampling cat: drop moving codes longer than this (as goal_planner does at its step cap)")
+    p.add_argument("--guard_floor_mm", type=float, default=None,
+                   help="--sampling cat: rank only steps the arm's low-lateral guard executes (header)")
     p.add_argument("--eval_stages", default="", help="evaluate only rows in these motion stages, e.g. 3,4")
     p.add_argument("--predictor_chunk", type=int, default=0, help="CEM samples per predictor call (memory only)")
     p.add_argument("--out", required=True)
@@ -286,6 +290,10 @@ def main():
         cem_kw = {k: cem_kw[k] for k in ("rollout", "samples", "cem_steps", "topk")} | {
             "codebook": codebook["codes"], "code_prior": codebook["prior"], "prior_temp": args.cat_temp}
         plan_fn = mpc.cem_categorical
+    if args.guard_floor_mm is not None:
+        if args.sampling != "cat":
+            p.error("--guard_floor_mm is a --sampling cat option")
+        cem_kw["low_floor"] = args.guard_floor_mm / 1e3
     if args.hold_open and args.goals != "stages":
         p.error("--hold_open acts on the descend goal: use --goals stages")
     gstages = goal_stages(args.goals, args.final_stage)
