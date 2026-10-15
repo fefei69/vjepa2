@@ -63,13 +63,20 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
     "cat36_stages_guard_h1": ("stages", "cat", 36.0, OFF | {"guard": True}),
     "aid_cat_stages_guard_grasp_h1": ("stages", "cat", None, OFF | {"guard": True, "hold_grasp": True}),
     "cat_stages_guard_h2": ("stages", "cat", None, OFF | {"guard": True}, 2),
+    # the full codebook planned, each executed step capped at 36 mm (goal_planner --max_speed 0.036 at fps 1 without
+    # the codebook limit): the arm's 36 mm rule unchanged, the model replans after every shortened step
+    "cat_stages_guard_cap36_h1": ("stages", "cat", None, OFF | {"guard": True, "exec_cap_mm": 36.0}),
+    "aid_cat_stages_guard_grasp_cap36_h1": ("stages", "cat", None,
+                                            OFF | {"guard": True, "hold_grasp": True, "exec_cap_mm": 36.0}),
+    "aid_cat_stages_xy_cap36_h1": ("stages", "cat", None, OFF | {"hold_xy": True, "hold_grasp": True, "exec_cap_mm": 36.0}),
     "aid_cat36_stages_xxy_h1": ("stages", "cat", 36.0, OFF | {"fix_x": True, "hold_xy": True, "hold_grasp": True}),
 }
 
 
-def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_mm=15.0, box=None):
+def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_mm=15.0, box=None, exec_cap_m=None):
     """One held-out move from its hover (header). plan_step(raw row of the shown frame, 7-D pose, goal index) -> the
-    planned 7-D action. box (lo, hi): the executed position is clamped into it, as goal_planner does."""
+    planned 7-D action. box (lo, hi): the executed position is clamped into it, then a step longer than exec_cap_m
+    is scaled down to it, as goal_planner does (--max_speed x the model step)."""
     rows = m["rows"][(m["stages"] >= 2) & (m["stages"] <= 6)]
     rows = np.arange(rows.min(), rows.max() + 1)  # every raw row of the approach .. transit
     st = hanoi_states(h["state"][rows].astype(np.float64), np.repeat(h["proprio"][rows, 6][:, None], 8, 1))
@@ -111,6 +118,8 @@ def replay_case(m, h, fstp, reach, gstages, plan_step, max_steps=3.0, max_snap_m
             outcome = "dropped" if grasped else "reopened"
             break
         new = xyz + a[:3] if box is None else np.clip(xyz + a[:3], box[0], box[1])
+        if exec_cap_m is not None and np.linalg.norm(new - xyz) > exec_cap_m:
+            new = xyz + (new - xyz) * exec_cap_m / np.linalg.norm(new - xyz)
         if min(xyz[2], new[2]) < LOW_FLOOR_M and np.linalg.norm(new[:2] - xyz[:2]) > LOW_LATERAL_LIMIT_M:
             outcome = "lateral guard"  # robot_io aborts this step before any motion
             break
@@ -213,7 +222,9 @@ def main():
                                    close_gripper=close, objective=mpc.l1, **(cem_kw | {"axis": axis})
                                    )[0][0].float().cpu().numpy()  # fmt: skip
 
-            case = replay_case(m, h, fstp, reach, gstages, plan_step, args.max_steps, args.max_snap_mm, box)
+            cap = aid.get("exec_cap_mm")
+            case = replay_case(m, h, fstp, reach, gstages, plan_step, args.max_steps, args.max_snap_mm, box,
+                               None if cap is None else cap / 1e3)
             h.close()
             cases.append({"transition": m["transition"]} | case)
             print(f"{name} {m['transition']}: {case['outcome']} in {case['steps']} steps "
