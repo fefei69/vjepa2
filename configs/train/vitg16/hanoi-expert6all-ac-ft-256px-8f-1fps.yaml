@@ -58,7 +58,7 @@ model:
   use_activation_checkpointing: true
   use_extrinsics: false
   use_rope: true
-optimization:                 # as the play and expert runs: 15k steps x 32 clips (~40 passes over 11,940 clips)
+optimization:                 # 7.5k steps x 32 clips (half the fps-4 H15 runs' 15k) ~ 0.85 pass over 282,839 fps-1 clips
   epochs: 25
   ipe: 300
   warmup: 2
