@@ -330,3 +330,78 @@ remains the real safety.
 Task-specific planning aids (a symbolic route solver, per-stage subgoal images, holding x fixed, a step cap) are kept
 separately in `app/vjepa_hanoi_oracle/`. They use privileged information and are not part of this baseline.
 
+
+## H15 with the one-move setup (`h15_test.py`)
+
+This plays each H15 task as its 15 optimal moves. Every move runs exactly as one `one_move_test` run with the setup
+that works on one move (stage subgoals, 51 training actions, the guard, the box, 36 mm steps, schedule ×1.5).
+- The server sets that move's six stage goals (from the first training demo of the same transition) and its schedule
+  (that transition's training medians, counted from the hover).
+- The arm opens the jaw, parks above the source peg at the start height, runs the schedule, and retreats.
+- The hover is the same for every H15 move: the 90 held-out demos pass within 1 mm of it at the end of their approach.
+
+So each move differs from an H1 run only in the board the previous moves left. This is not the paper baseline: it
+gives the planner 15 × 6 manual subgoal images.
+
+**Bundle `robot_bundle_efps1h15`.** It holds the same weights as `robot_bundle_efps1` (E-1fps), with goals for all 90
+H15 moves from `data/expert6_single_move/train.npz`. Two things must come from all moves, not first moves:
+- **The box.** The first moves' box stops at 85.7 mm, but later moves grasp and place down to 56.5 mm.
+- **The 51 actions.** With the first moves' set, later moves fail offline: 8/84.
+
+Export it with `sbatch --export=ALL,MODEL=efps1h15 tools/export.sbatch`; MANIFEST sha256 of weights.pt 3987bca2….
+
+**Offline, all 90 held-out H15 moves** (`descent_replay.py --until release`, closed loop on recorded frames; the arm
+setting is guard + box + 36 mm cap + schedule ×1.5; `tools/h15_replay_report.py`):
+
+| | all 90 moves | the 6 first moves | later moves |
+|---|---|---|---|
+| arm setting, success as for H1 | 48/90 | 3/6 (`robot_bundle_efps1`: 5/6) | 45/84 |
+| same, counting a release over the rod as placed | 82/90 | | |
+| full 1 s steps, no cap (not allowed on the arm today) | 67/90 | 5/6 | 62/84 |
+
+- "As for H1" means the jaw opens within 10 mm (5 mm sideways) of the demo's release pose. "Over the rod" counts an
+  opening up to 15 mm higher, still within 5 mm sideways and below the low floor. 34 of the 42 misses are of that kind,
+  so whether the ring slides down the rod decides most of them.
+- Later moves do about as well as first moves.
+- Ring 4 (move 8) is 3/6 with the arm setting and 0/6 at full steps: the jaw stays open 5 mm above it.
+
+On the robot machine (`/home/cpw/workspace/vjepa2` at this commit; copy the bundle once):
+```bash
+rsync -avhPr --append-verify \
+  cw5167@login.torch.hpc.nyu.edu:/scratch/cw5167/checkpoints/vjepa2_ac_hanoi/robot_bundle_efps1h15/ \
+  /home/cpw/vjepa_bundle_efps1h15/
+```
+Terminal 1 (the vjepa2 torch environment):
+```bash
+cd /home/cpw/workspace/vjepa2
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python -m app.vjepa_hanoi.goal_planner \
+    --fname /home/cpw/vjepa_bundle_efps1h15/config.yaml --checkpoint /home/cpw/vjepa_bundle_efps1h15/weights.pt \
+    --goal_bundle /home/cpw/vjepa_bundle_efps1h15/goals.npz --protocol paper --subgoals stages --sampling cat \
+    --guard_floor_mm 166.13 --box_feasible --max_speed 0.036 --predictor_chunk 200 --host 127.0.0.1 --port 8766
+```
+Terminal 2 (tower_hanoi's environment):
+```bash
+conda deactivate; source /opt/ros/jazzy/setup.bash; cd /home/cpw/workspace/vjepa2
+EXECUTE=1 PYTHONPATH=/home/cpw/workspace/tower_hanoi:/home/cpw/workspace/vjepa2:$PYTHONPATH \
+  uv run --project /home/cpw/workspace/tower_hanoi --extra robot --extra ros \
+  python -m app.vjepa_hanoi.h15_test --execute --tasks 'AAAA>CCCC' --variants stages --schedule_scale 1.5 \
+  --out runs/h15_efps1h15_2026-10-16 --tower-hanoi /home/cpw/workspace/tower_hanoi
+```
+- **Before any motion.** The runner checks the server: paper protocol, steps ≤ 36 mm, and the guard floor equal to this
+  arm's. It also asks the server for the goals and schedule of every move it will run. A one-move bundle such as
+  `robot_bundle_efps1` is refused here.
+- **After every move.** You answer how far it got (0–5, x = invalid) and, for a placement, whether another ring moved.
+  A success moves on to the next move. After a failure:
+  - `c` sets the board by hand to the result the move should have made, then continues;
+  - `r` sets it back and redoes the move;
+  - `q` ends the task.
+
+  For `c` and `r` the arm first goes to the start pose behind the rods. Both are recorded as interventions.
+- **If the retreat is declined or fails**, the arm does not move again: the session ends with its exit retreat (the jaw
+  opens first below the low floor, PARK only if that fails). Continue with `--append --from-move N`.
+- **Results.** `results.jsonl` gets one row per move attempt (task, move, ring, pegs, progress, success,
+  after_intervention). `tasks.jsonl` gets one row per task: moves before the first failure, strict success (all 15
+  from move 1 with no intervention), and the attempts. The per-move logs (`<task>_stages_r0_mNN.npz` / `.steps.jsonl`)
+  are like `one_move_test`'s.
+- `--tasks` takes any of the six (`AAAA>BBBB AAAA>CCCC BBBB>AAAA BBBB>CCCC CCCC>AAAA CCCC>BBBB`, comma-separated).
+- **Cluster rehearsal** (dry run, the cluster's floor 175.32): `tools/rehearse.sbatch` with `CLIENT=h15`.
