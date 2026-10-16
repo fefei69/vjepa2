@@ -85,6 +85,10 @@ SETTINGS = {  # name -> (goals, sampling, cat_max_mm, aids); labels as offline.s
     "cat_stages_guard_box_cap36_sched15_h1": ("stages", "cat", None,
                                               OFF | {"guard": True, "box": True, "exec_cap_mm": 36.0, "sched_scale": 1.5}),
     "cat_stages_guard_box_sched15_h1": ("stages", "cat", None, OFF | {"guard": True, "box": True, "sched_scale": 1.5}),
+    "cat_stages_guard_box_cap36_sched125_h1": ("stages", "cat", None,
+                                               OFF | {"guard": True, "box": True, "exec_cap_mm": 36.0, "sched_scale": 1.25}),
+    "cat_stages_guard_box_cap36_sched175_h1": ("stages", "cat", None,
+                                               OFF | {"guard": True, "box": True, "exec_cap_mm": 36.0, "sched_scale": 1.75}),
 }
 
 
