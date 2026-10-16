@@ -1,9 +1,6 @@
-# Run A-play-1fps (2026-10-16): the fps-1 recipe of A-expert6all-1fps (E-1fps; hanoi-expert6all-ac-ft-256px-8f-1fps.yaml:
-# official released init vjepa2-ac-vitg.pt + state token, fps 1, 25 epochs x 300 steps x 32 clips, anneal 5,
-# val_every 1) on the PLAY data of the H15 baseline (play_k5, the data of run A, hanoi-play-k5-ac-ft-256px-8f.yaml).
-# Changes from run A: data.fps 4 -> 1, epochs 50 -> 25, anneal 10 -> 5, meta.val_every 5 -> 1. Validation and test on
-# the play val/test splits. 620,548 training clips at fps 1 (653,784 at fps 4): 25 x 300 x 32 = 240k clips, ~0.39 pass
-# (E-1fps: 0.85 pass over its 282,839). Same step budget as E-1fps, so play vs expert at fps 1 is compute-matched.
+# Run A-play-1fps (2026-10-16): run A (hanoi-play-k5-ac-ft-256px-8f.yaml, the fps-4 H15 play model) with ONE change,
+# data.fps 4 -> 1 (every 30th 30 Hz row, 1.0 s per model step). Same play_k5 data, same released init
+# (vjepa2-ac-vitg.pt + state token), same 15k steps x 32 clips, validation and test on the play val/test splits.
 # Launch: sbatch --export=ALL,CONFIG=configs/train/vitg16/hanoi-play-k5-ac-ft-256px-8f-1fps.yaml app/vjepa_hanoi/train.sbatch
 app: vjepa_hanoi
 folder: /scratch/cw5167/checkpoints/vjepa2_ac_hanoi/A_play_1fps_vitg_finetune_v1
@@ -44,7 +41,7 @@ meta:
   resume_checkpoint: null
   checkpoint_every: 5         # latest.pt every 5 epochs (~6 GB B / ~12 GB A) = resume granularity
   save_every_freq: 25
-  val_every: 1               # best.pt selection every epoch, as E-1fps (~50 s per check)
+  val_every: 5
   seed: 239
   use_sdpa: true
 model:
@@ -59,11 +56,11 @@ model:
   use_activation_checkpointing: true
   use_extrinsics: false
   use_rope: true
-optimization:                 # as E-1fps: 7.5k steps x 32 clips ~ 0.39 passes over the 620,548 fps-1 training clips
-  epochs: 25
+optimization:                 # as run A: 15k steps x 32 clips ~ 0.77 passes over the 620,548 fps-1 training clips
+  epochs: 50
   ipe: 300
   warmup: 2
-  anneal: 5                   # was 10 (as E-1fps)
+  anneal: 10
   lr: 0.0001
   start_lr: 0.00002
   final_lr: 0.0

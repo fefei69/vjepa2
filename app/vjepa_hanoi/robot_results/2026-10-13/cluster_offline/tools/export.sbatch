@@ -15,7 +15,8 @@
 # with goals from the first-move train split; or the fps-4 models of the H15 baseline, with goals (and box) from their
 # own training split: play (A, play_k5), cplay (C, play_k5), expert (A-expert, six tasks), cexpert (C-expert).
 # fps-1 models for H15, goals (board goals, stage goals of every training move, codebook, box) from their own training
-# split: efps1h15 (E-1fps, the six-task expert archive it trained on), pfps1 (A-play-1fps, play_k5).
+# split: efps1h15 (E-1fps, the six-task expert archive it trained on), expert1fps (A-expert-1fps: A-expert at fps 1),
+# play1fps (A-play-1fps: A at fps 1, play_k5).
 set -euo pipefail
 REPO=/scratch/cw5167/workspace/vjepa2
 K=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi
@@ -33,7 +34,8 @@ case "${MODEL:?set MODEL}" in
   expert) CFG=configs/train/vitg16/hanoi-expert6-ac-ft-256px-8f.yaml; RUN=A_expert6_vitg_finetune_v1; GOALS=$EXPERT ;;
   cexpert) CFG=configs/train/vitg16/hanoi-expert6-ac-scratch-256px-8f.yaml; RUN=C_expert6_vitg_scratch_v1; GOALS=$EXPERT ;;
   efps1h15) CFG=configs/train/vitg16/hanoi-expert6all-ac-ft-256px-8f-1fps.yaml; RUN=A_expert6all_1fps_vitg_finetune_v1; GOALS=$EXPERT ;;
-  pfps1) CFG=configs/train/vitg16/hanoi-play-k5-ac-ft-256px-8f-1fps.yaml; RUN=A_play_1fps_vitg_finetune_v1; GOALS=$PLAY ;;
+  expert1fps) CFG=configs/train/vitg16/hanoi-expert6-ac-ft-256px-8f-1fps.yaml; RUN=A_expert6_1fps_vitg_finetune_v1; GOALS=$EXPERT ;;
+  play1fps) CFG=configs/train/vitg16/hanoi-play-k5-ac-ft-256px-8f-1fps.yaml; RUN=A_play_1fps_vitg_finetune_v1; GOALS=$PLAY ;;
   *) echo "unknown MODEL $MODEL" >&2; exit 2 ;;
 esac
 echo "job $SLURM_JOB_ID on $(hostname -s), commit $(git rev-parse --short HEAD)"
