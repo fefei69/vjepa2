@@ -26,6 +26,9 @@
 #   c  set the board by hand to the board this move should have made and continue with the next move
 #   r  set the board back to this move's start board and run the move again
 #   q  end this task
+# For c and r the arm first moves to the start pose behind the rods (as one_move_test after a run). After a move whose
+# retreat was declined or failed, the arm does not move again: the session ends with its exit retreat (jaw open first
+# below the low floor; PARK only if that fails), as one_move_test's next motion after an error waits for the operator.
 # c and r are interventions: they are recorded, and the task's strict result (moves completed before the first
 # failure, success = all 15 without one) ends at the first failure. The moves after an intervention still give
 # per-move results, so later moves are measured too. Logs: <out>/<task>_<variant>_r<rep>_m<move>[_aN].npz (every step
@@ -244,7 +247,9 @@ def main():
                       intent="open", step_log=os.path.join(args.out, step_log))  # fmt: skip
             meta["seconds"] = (datetime.datetime.now() - t0).total_seconds()
             phase = "retreating"
-            opened_from = robot.retreat()
+            if float(robot.pose()[2]) < robot.low_floor:
+                opened_from = robot.jaw()  # read before retreat() opens the jaw: a failed lift must not lose it
+            robot.retreat()
             retreated, phase = True, "done"
         except KeyboardInterrupt:
             meta["error"] = f"stopped by the operator (Ctrl-C) while {phase}"
@@ -255,7 +260,8 @@ def main():
         if meta["error"]:
             print(f"\nmove stopped after {meta['steps']} steps: {meta['error']}")
             if phase in ("parking", "running", "retreating"):
-                meta["retreat_error"], opened_from = offer_retreat()
+                meta["retreat_error"], again = offer_retreat()
+                opened_from = again if opened_from is None else opened_from
                 retreated = meta["retreat_error"] is None
         runner_released = opened_from is not None and opened_from < OPEN_JAW_MIN
         meta.update({"retreat_opened_jaw_from": opened_from, "runner_released_jaw": runner_released})
@@ -283,7 +289,10 @@ def main():
         return meta, retreated and not meta["error"]
 
     def clear_for_board():
-        """One leg at the start height to the start pose, 8 cm behind the rods, so the operator can set the board."""
+        """One leg at the start height to the start pose, 8 cm behind the rods, so the operator can set the board.
+        Only after a move that retreated (the task loop ends the session otherwise); the retreat again first, a no-op
+        at the start height, so below the low floor the jaw would open before any lift."""
+        robot.retreat()
         if jaw_closed() and q("The jaw reads closed. Open it now (a held ring drops)? [y/n]: ", {"y", "n"},
                               dry="n") == "y":  # fmt: skip
             robot.gripper("open")
@@ -311,37 +320,46 @@ def main():
                     while k <= len(seq):
                         mv = seq[k - 1]
                         before, after = mv.split(">")
-                        meta, clean = run_move(task, variant, rep, k, mv, intervened)
+                        meta, _ = run_move(task, variant, rep, k, mv, intervened)
                         cleared = False
                         attempts.append({"move": k, "transition": mv, "success": meta["success"],
                                          "progress": meta["progress"], "valid": meta["valid"],
                                          "log_file": meta["log_file"]})  # fmt: skip
+                        if meta["valid"] and not meta["success"] and strict is None:
+                            strict = k - args.from_move
+                        if meta.get("retreat_error"):  # retreat declined or failed: as one_move_test, no motion
+                            # here; the session's exit retreat (jaw open first below the low floor, PARK if it fails)
+                            print("the arm did not retreat: ending the session; continue later with --append "
+                                  f"--from-move {k if not meta['success'] else k + 1} (and that move's start board)")
+                            stop_session = True
+                            break
                         if meta["success"]:
                             k += 1
-                            if not clean:  # a retreat or arm error after the move: the arm's state is uncertain
-                                stop_session = True
-                                break
+                            if meta["error"] and q(f"Move {k - 1} succeeded, but its run stopped with an error. Continue "
+                                                   f"with the next move? [y/n]: ", {"y", "n"}, dry="y") != "y":
+                                break  # fmt: skip
                             continue
                         if meta["valid"]:
-                            strict = k - args.from_move if strict is None else strict
                             what = q(f"Move {k} did not succeed. [c] set the board by hand to {after} and continue, "
-                                     f"[r] set it back to {before} and redo move {k}, [q] end this task: ",
+                                     f"[r] set it back to {before} and redo move {k} (either way the arm first moves to "
+                                     f"the start pose behind the rods), [q] end this task: ",
                                      {"c", "r", "q"}, dry="c")  # fmt: skip
                         else:  # an invalid attempt (set-up, network or server problem) is redone, not a failure
-                            what = q(f"Invalid attempt. [r] redo move {k} (the board back to {before} if anything "
-                                     f"moved), [q] end this task: ", {"r", "q"}, dry="q")  # fmt: skip
+                            what = q(f"Invalid attempt. [r] redo move {k} (the arm first moves to the start pose; the "
+                                     f"board back to {before} if anything moved), [q] end this task: ", {"r", "q"},
+                                     dry="q")  # fmt: skip
                         if what == "q":
                             break
                         try:
                             clear_for_board()
                             cleared = True
-                        except Exception as e:  # the arm's state is uncertain: end the session (the exit retreat)
+                        except BaseException as e:  # Ctrl-C included: the arm's state is uncertain, end the session
                             print(f"move to the start pose failed: {type(e).__name__}: {e}")
                             stop_session = True
                             break
                         board = after if what == "c" else before
-                        if q(f"Set the board to {board} now. [Enter] when done, [q] end this task: ", {"", "q"},
-                             dry="") == "q":  # fmt: skip
+                        if q(f"Set the board to {board} now, make sure the gripper is empty. [Enter] when done, [q] "
+                             f"end this task: ", {"", "q"}, dry="") == "q":  # fmt: skip
                             break
                         if meta["valid"]:
                             intervened = True  # the operator corrected the board after a failed move
@@ -349,7 +367,8 @@ def main():
                     done = strict if strict is not None else (k - args.from_move)
                     row = {"task": task, "variant": variant, "repeat": rep, "from_move": args.from_move,
                            "moves_before_first_failure": done,
-                           "strict_success": strict is None and k > len(seq) and not args.dry_run,
+                           "strict_success": (args.from_move == 1 and strict is None and k > len(seq)
+                                              and not args.dry_run),
                            "interventions": intervened, "attempts": attempts}  # fmt: skip
                     summary.append(row)
                     with open(os.path.join(args.out, "tasks.jsonl"), "a") as f:
@@ -358,7 +377,7 @@ def main():
                     if not stop_session and not cleared:
                         try:
                             clear_for_board()
-                        except Exception as e:
+                        except BaseException as e:  # Ctrl-C included: end the session (its exit retreat)
                             print(f"move to the start pose failed: {type(e).__name__}: {e}")
                             stop_session = True
                     if stop_session:
