@@ -1,5 +1,5 @@
 # Closed-loop descend + grasp + lift (--until release: + transit, insert, release) on recorded frames (no robot, no
-# simulator), from the hover of each held-out first move:
+# simulator), from the hover of each held-out move (default: the first moves):
 #
 #   python descent_replay.py --fname <config> --checkpoint <best.pt> --settings cat_stages_h1,stages_h1 --out <json>
 #
@@ -20,6 +20,8 @@
 # Success: closed within 10 mm of the grasp height and 5 mm of the grasp position laterally, then lifted 30 mm with the
 # gripper closed. "grasp height/position" is the tool position at the demo's first closed row. Below the grasp height
 # the arm's box clamps (lowest recorded height - 1 mm); here the overshoot is reported (lowest planned height).
+# --archive / --goal_archive data/expert6_single_move/{test,train}.npz: every move of the H15 tasks (90 held-out moves,
+# 8 training demos each), not only the first; --codebook_archive keeps another split's codebook (e.g. the first moves').
 # Settings (SETTINGS below; labels as in offline.sbatch): base_h1 (the paper protocol, B), cat_h1, stages_h1,
 # cat_stages_h1, cat36_stages_h1, data_stages_h1 (P), and with aids (A, paper_protocol_eval.aids per goal stage):
 # *_fixx_* (x held at 0: from the hover x never has to move), aid_*_xy_* (hold_xy + hold_grasp), aid_*_xxy_* (all three);
@@ -170,6 +172,9 @@ def main():
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--archive", default=f"{K}/test.npz")
     p.add_argument("--goal_archive", default=f"{K}/train.npz")
+    p.add_argument("--codebook_archive", default=None,
+                   help="the categorical codebook's training actions (default: --goal_archive; goals and box always "
+                        "come from --goal_archive)")
     p.add_argument("--settings", default="base_h1,cat_stages_h1")
     p.add_argument("--max_snap_mm", type=float, default=15.0)
     p.add_argument("--max_steps", type=float, default=3.0,
@@ -212,6 +217,8 @@ def main():
     xyz = np.load(args.goal_archive)["measured_xyz"]  # goal_planner's workspace box (the training data, padded)
     box = (xyz.min(0) - np.array([0.005, 0.005, 0.001]), xyz.max(0) + 0.005)
     results = {"checkpoint": args.checkpoint, "fname": args.fname, "step_rows": fstp, "settings": {},
+               "archive": args.archive, "goal_archive": args.goal_archive,
+               "codebook_archive": args.codebook_archive or args.goal_archive, "until": args.until,
                "box_mm": [(box[0] * 1e3).round(1).tolist(), (box[1] * 1e3).round(1).tolist()]}
     for name in args.settings.split(","):
         goals, sampling, cat_max_mm, aid, *horizon = SETTINGS[name]
@@ -225,7 +232,7 @@ def main():
             bounds = bounds or action_bounds(args.goal_archive, d.get("fps", 4))
             cem_kw |= data_sampling(bounds)
         if sampling == "cat":
-            codebook = codebook or action_codebook(args.goal_archive, d.get("fps", 4))
+            codebook = codebook or action_codebook(args.codebook_archive or args.goal_archive, d.get("fps", 4))
             cb = codebook if cat_max_mm is None else limit_codebook(codebook, cat_max_mm / 1e3)
             cem_kw = {k: cem_kw[k] for k in ("rollout", "samples", "cem_steps", "topk")} | {
                 "codebook": cb["codes"], "code_prior": cb["prior"], "prior_temp": 0.5}

@@ -33,6 +33,9 @@
 #                                                        descent_replay.py: closed loop from the hover on recorded frames
 #                                                        (its own setting names; REPLAY_ARGS="--until release" for the
 #                                                        whole move); -> replay/<model>_replay[_$TAG].json
+#   sbatch --export=ALL,TASK=replay,MODEL=efps1,TAG=h15,SETTINGS="cat_stages_guard_box_h1",REPLAY_ARGS="--until release
+#          --archive $K/data/expert6_single_move/test.npz --goal_archive $K/data/expert6_single_move/train.npz" <this file>
+#                                                        the same on all 90 held-out moves of the six H15 tasks
 set -uo pipefail  # one failing setting does not stop the others
 REPO=/scratch/cw5167/workspace/vjepa2
 K=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi
@@ -53,6 +56,10 @@ model() {  # name -> CFG CKPT PFX DENSE
            CKPT=$K/A_expert6all_1fps_vitg_finetune_v1/best.pt; PFX=efps1_; DENSE="--row_stride 8" ;;
     efps2) CFG=configs/train/vitg16/hanoi-expert6all-ac-ft-256px-8f-2fps.yaml
            CKPT=$K/A_expert6all_2fps_vitg_finetune_v1/best.pt; PFX=efps2_; DENSE="--row_stride 8" ;;
+    expert1fps) CFG=configs/train/vitg16/hanoi-expert6-ac-ft-256px-8f-1fps.yaml   # A-expert at fps 1 (H15 expert, 15k steps)
+           CKPT=$K/A_expert6_1fps_vitg_finetune_v1/best.pt; PFX=expert1fps_; DENSE="--row_stride 8" ;;
+    play1fps) CFG=configs/train/vitg16/hanoi-play-k5-ac-ft-256px-8f-1fps.yaml   # A at fps 1 (H15 play, 15k steps)
+           CKPT=$K/A_play_1fps_vitg_finetune_v1/best.pt; PFX=play1fps_; DENSE="--row_stride 8" ;;
     *) echo "unknown MODEL $1" >&2; exit 2 ;;
   esac
 }
