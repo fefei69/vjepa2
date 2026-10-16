@@ -15,7 +15,8 @@
 #                 the same schedules counted from each demo's hover (hover_schedules, stage_hover_schedules) for runs
 #                 that start there; step_rows, the model step in raw rows (the config's data.fps: 8 at fps 4); and
 #                 action_bounds_json, the training actions' range at that step (goal_planner --sampling data), and
-#                 action_codebook_json, the categorical planner's action set (goal_planner --sampling cat); and
+#                 action_codebook_json, the categorical planner's action set (goal_planner --sampling cat; from
+#                 --codebook_archive if given); and
 #                 board_names / board_frames / board_frame_sources, one goal frame per board that ends a complete
 #                 training move (the frame goal_planner's goal_board picks: the last row of the first such move, arm
 #                 retreated), for the plain goal-image runs (arm_goal_client --goal-board CCCC, e.g. the H15 tasks).
@@ -58,6 +59,8 @@ def main():
     p.add_argument("--fname", required=True)
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--goal_archive", required=True)
+    p.add_argument("--codebook_archive", default=None,
+                   help="the categorical planner's codebook from this split's training actions (default: --goal_archive)")
     p.add_argument("--final_stage", type=int, choices=(8, 9), default=8)
     p.add_argument("--out", required=True)
     p.add_argument("--goals_only", action="store_true", help="keep the bundle's weights.pt; rewrite goals.npz")
@@ -118,6 +121,7 @@ def main():
         board_names.append(board)
         board_sources.append([m["file"], int(m["rows"][-1])])
     reach = time_schedule(train, args.final_stage, fstp=fstp)
+    codebook_archive = os.path.abspath(args.codebook_archive or args.goal_archive)
     z = np.load(args.goal_archive)
     if "measured_xyz" in z.files:  # goal_planner's box for --goal_archive: the recorded range, padded
         xyz = z["measured_xyz"]
@@ -147,7 +151,7 @@ def main():
         step_rows=np.array(fstp),
         goal_archive=np.array(os.path.abspath(args.goal_archive)),
         action_bounds_json=np.array(json.dumps(action_bounds(args.goal_archive, cfg["data"].get("fps", 4)))),
-        action_codebook_json=np.array(json.dumps(action_codebook(args.goal_archive, cfg["data"].get("fps", 4)))),
+        action_codebook_json=np.array(json.dumps(action_codebook(codebook_archive, cfg["data"].get("fps", 4)))),
         board_names=np.array(board_names),
         board_frames=np.stack(board_frames).astype(np.uint8),
         board_frame_sources=np.array(board_sources, np.int64),
@@ -157,6 +161,7 @@ def main():
     with open(os.path.join(args.out, "MANIFEST.json"), "w") as f:
         json.dump({"source_checkpoint": os.path.abspath(args.checkpoint), "checkpoint_info": info,
                    "config": os.path.abspath(args.fname), "goal_archive": os.path.abspath(args.goal_archive),
+                   "codebook_archive": codebook_archive,
                    "final_stage": args.final_stage, "transitions": dict(zip(transitions, schedules)),
                    "stage_goals": {"stages": list(sst), "schedules": dict(zip(transitions, stage_schedules))},
                    "step_rows": fstp, "hover_schedules": dict(zip(transitions, hover_schedules)),

@@ -71,7 +71,7 @@ class ReplayCamera:
 
     def image(self):
         img = self.f["pixels"][self.row]
-        self.row += self.step_rows
+        self.row = min(self.row + self.step_rows, len(self.f["pixels"]) - 1)  # the last move of a file: hold its end
         return img
 
     def pose_and_jaw(self):

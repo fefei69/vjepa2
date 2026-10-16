@@ -18,6 +18,11 @@
 # CLIENT=goal runs arm_goal_client instead (the plain goal-image baseline, e.g. H15), with PROTOCOL=plain:
 #   sbatch --export=ALL,BUNDLE=$K/robot_bundle_expert,PROTOCOL=plain,CLIENT=goal,SERVER_FLAGS="--predictor_chunk 100",\
 #          RUNNER_FLAGS="--start AAAA --goal-board CCCC --steps 3" <this file>
+# CLIENT=h15 runs h15_test (every H15 move as one_move_test runs one; a bundle with every move, export MODEL=efps1h15),
+# each move's camera replaying its held-out move from the hover; on the cluster the arm's low floor is 175.32 mm:
+#   sbatch --export=ALL,BUNDLE=$K/robot_bundle_efps1h15,PROTOCOL=paper,CLIENT=h15,SERVER_FLAGS="--subgoals stages
+#          --sampling cat --guard_floor_mm 175.32 --box_feasible --max_speed 0.036",RUNNER_FLAGS="--tasks AAAA>CCCC
+#          --variants stages --schedule_scale 1.5" <this file>
 set -uo pipefail
 REPO=/scratch/cw5167/workspace/vjepa2
 K=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi
@@ -36,7 +41,10 @@ SERVER=$!
 for i in $(seq 1 120); do kill -0 "$SERVER" 2>/dev/null || { echo "server exited"; tail -5 "$OUT/server.log"; exit 1; }
   curl -s http://127.0.0.1:$PORT/health > "$OUT/health.json" 2>/dev/null && break; sleep 5; done
 echo "health: $(head -c 600 "$OUT/health.json")"
-if [ "${CLIENT:-one_move}" = goal ]; then  # camera: the AAAA->CCCC recording, from its first row
+if [ "${CLIENT:-one_move}" = h15 ]; then
+  PYTHONPATH="$TH:$REPO" "$PY" -m app.vjepa_hanoi.h15_test --dry-run --replay-archive "$K/data/expert6_single_move/test.npz" \
+    --yes --tower-hanoi "$TH" --server http://127.0.0.1:$PORT --out "$OUT/runs" ${RUNNER_FLAGS:-} 2>&1 | grep -v Warning
+elif [ "${CLIENT:-one_move}" = goal ]; then  # camera: the AAAA->CCCC recording, from its first row
   PYTHONPATH="$TH:$REPO" "$PY" -m app.vjepa_hanoi.arm_goal_client --dry-run --protocol ${PROTOCOL:-paper} \
     --replay /scratch/cw5167/datasets/hanoi_wm_roundtrip_20260925_171442_AAAA_to_CCCC.h5 --tower-hanoi "$TH" \
     --server http://127.0.0.1:$PORT --log "$OUT/runs/goal_run.npz" ${RUNNER_FLAGS:-} 2>&1 | grep -v Warning
