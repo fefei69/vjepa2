@@ -60,6 +60,10 @@ model() {  # name -> CFG CKPT PFX DENSE
            CKPT=$K/A_expert6_1fps_vitg_finetune_v1/best.pt; PFX=expert1fps_; DENSE="--row_stride 8" ;;
     play1fps) CFG=configs/train/vitg16/hanoi-play-k5-ac-ft-256px-8f-1fps.yaml   # A at fps 1 (H15 play, 15k steps)
            CKPT=$K/A_play_1fps_vitg_finetune_v1/best.pt; PFX=play1fps_; DENSE="--row_stride 8" ;;
+    h1plus) CFG=configs/train/vitg16/hanoi-firstmoveplus-ac-ft-256px-8f-1fps.yaml   # fps1 + 200 older expert first moves
+           CKPT=$K/A_firstmoveplus_1fps_vitg_finetune_v1/best.pt; PFX=h1plus_; DENSE="--row_stride 8" ;;
+    h1plusall) CFG=configs/train/vitg16/hanoi-firstmoveplusall-ac-ft-256px-8f-1fps.yaml   # h1plus + 91 play first moves
+           CKPT=$K/A_firstmoveplusall_1fps_vitg_finetune_v1/best.pt; PFX=h1plusall_; DENSE="--row_stride 8" ;;
     *) echo "unknown MODEL $1" >&2; exit 2 ;;
   esac
 }

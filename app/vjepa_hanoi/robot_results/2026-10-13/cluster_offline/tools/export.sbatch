@@ -19,6 +19,8 @@
 # data/expert6_single_move/train.npz (the six-task expert training moves, one per row group, with measured_xyz for the
 # box), play1fps (A-play-1fps: A at fps 1) from play_k5. CODEBOOK=<archive>: the codebook from another split (e.g.
 # $K/data/expert6_first_move/train.npz, the one-move bundle's); OUT=<name>: the bundle folder (default the MODEL).
+# h1plus / h1plusall (first moves only, more demos: build_first_move_plus_archive.py) take the first-move goals, codebook
+# and box like fps1, so their bundles differ from robot_bundle_fps1 only in weights.pt.
 set -euo pipefail
 REPO=/scratch/cw5167/workspace/vjepa2
 K=/scratch/cw5167/checkpoints/vjepa2_ac_hanoi
@@ -39,6 +41,8 @@ case "${MODEL:?set MODEL}" in
   efps1h15) CFG=configs/train/vitg16/hanoi-expert6all-ac-ft-256px-8f-1fps.yaml; RUN=A_expert6all_1fps_vitg_finetune_v1; GOALS=$MOVES ;;
   expert1fps) CFG=configs/train/vitg16/hanoi-expert6-ac-ft-256px-8f-1fps.yaml; RUN=A_expert6_1fps_vitg_finetune_v1; GOALS=$MOVES ;;
   play1fps) CFG=configs/train/vitg16/hanoi-play-k5-ac-ft-256px-8f-1fps.yaml; RUN=A_play_1fps_vitg_finetune_v1; GOALS=$PLAY ;;
+  h1plus) CFG=configs/train/vitg16/hanoi-firstmoveplus-ac-ft-256px-8f-1fps.yaml; RUN=A_firstmoveplus_1fps_vitg_finetune_v1 ;;
+  h1plusall) CFG=configs/train/vitg16/hanoi-firstmoveplusall-ac-ft-256px-8f-1fps.yaml; RUN=A_firstmoveplusall_1fps_vitg_finetune_v1 ;;
   *) echo "unknown MODEL $MODEL" >&2; exit 2 ;;
 esac
 echo "job $SLURM_JOB_ID on $(hostname -s), commit $(git rev-parse --short HEAD)"
